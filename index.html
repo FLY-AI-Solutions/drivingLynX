@@ -20,20 +20,17 @@
             -webkit-font-smoothing: antialiased;
         }
 
-        /* Improved Visual Hierarchy for Logo */
         .metallic-text {
             background: linear-gradient(135deg, #ffffff 0%, #a1a1a1 50%, #707070 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
 
-        /* Focus States for Accessibility */
         *:focus-visible {
             outline: 2px solid #ffffff;
             outline-offset: 4px;
         }
 
-        /* Affordance & Feedback */
         .glass-card {
             background: rgba(255, 255, 255, 0.04);
             backdrop-filter: blur(12px);
@@ -59,7 +56,6 @@
             box-shadow: 0 1px 0px rgba(0,0,0,0.2);
         }
 
-        /* Smooth tab indicator */
         .tab-indicator {
             transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
         }
@@ -68,18 +64,35 @@
             color: white !important;
             font-weight: 600;
         }
+
+        /* Logo image styling */
+        .brand-logo {
+            height: 48px;
+            width: auto;
+            object-fit: contain;
+            filter: drop-shadow(0 0 8px rgba(255,255,255,0.1));
+        }
     </style>
 </head>
 <body class="min-h-screen flex flex-col">
 
     <!-- Header / Navigation -->
     <header class="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
-        <nav class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center" aria-label="Main Navigation">
-            <div class="flex items-center gap-4">
-                <div class="w-12 h-12 bg-gradient-to-br from-white/20 to-transparent rounded-xl flex items-center justify-center border border-white/20 shadow-inner" aria-hidden="true">
-                    <span class="text-lg font-black tracking-tighter">LX</span>
-                </div>
-                <h1 class="text-2xl font-black tracking-tighter metallic-text uppercase">drivingLynX</h1>
+        <nav class="max-w-7xl mx-auto px-6 h-24 flex justify-between items-center" aria-label="Main Navigation">
+            <div class="flex items-center gap-6">
+                <a href="/" class="flex items-center gap-4 group" aria-label="drivingLynX Home">
+                    <img 
+                        src="IMG_0642.jpg" 
+                        alt="drivingLynX Logo" 
+                        class="brand-logo transition-transform group-hover:scale-105"
+                        onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';"
+                    >
+                    <!-- Fallback if image fails to load -->
+                    <div class="hidden w-12 h-12 bg-white/10 rounded-xl items-center justify-center border border-white/20">
+                        <span class="text-xs font-bold">LX</span>
+                    </div>
+                    <h1 class="text-2xl font-black tracking-tighter metallic-text uppercase hidden sm:block">drivingLynX</h1>
+                </a>
             </div>
             
             <div class="hidden md:flex items-center gap-8">
@@ -93,8 +106,7 @@
                 </button>
             </div>
 
-            <!-- Mobile Menu Placeholder -->
-            <button class="md:hidden p-2" aria-label="Open Menu">
+            <button class="md:hidden p-2 text-gray-400" aria-label="Open Menu">
                 <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16m-7 6h7"/></svg>
             </button>
         </nav>
@@ -105,11 +117,11 @@
         <section class="text-center mb-16">
             <h2 class="text-4xl md:text-6xl font-black mb-6 tracking-tight">Practice makes perfect.<br><span class="text-gray-500">Lynx makes it easy.</span></h2>
             <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
-                We bridge the gap between getting your permit and passing your test by connecting you with trusted local supervisors.
+                Connecting permit holders with experienced mentors for flexible, insurance-backed practice sessions.
             </p>
         </section>
 
-        <!-- User Role Selection (HCI: Mental Model & Tab Pattern) -->
+        <!-- User Role Selection -->
         <div class="flex flex-col items-center mb-12">
             <div class="relative bg-white/5 p-1 rounded-2xl border border-white/10 w-full max-w-md flex" role="tablist">
                 <button id="learnerTab" role="tab" aria-selected="true" aria-controls="contentFrame" 
@@ -122,26 +134,29 @@
                     class="flex-1 py-3 px-4 rounded-xl text-sm font-bold z-10 transition-colors text-gray-500">
                     Start Mentoring
                 </button>
-                <!-- Physical feedback indicator -->
                 <div id="tabIndicator" class="absolute inset-y-1 left-1 w-[calc(50%-4px)] bg-white/10 rounded-xl tab-indicator shadow-xl border border-white/10"></div>
             </div>
         </div>
 
-        <!-- Dynamic Content (HCI: Consistency & Recognition over Recall) -->
+        <!-- Dynamic Content Frame -->
         <div id="contentFrame" class="grid md:grid-cols-2 gap-8" aria-live="polite">
-            <!-- Dynamic Content Injected Here -->
+            <!-- Content injected via JS -->
         </div>
     </main>
 
-    <!-- Trust Footer -->
+    <!-- Footer -->
     <footer class="bg-black py-12 px-6 border-t border-white/5">
-        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
-            <div class="text-sm text-gray-500 font-medium">
-                &copy; 2026 drivingLynX Platform. <span class="mx-2 text-white/10">|</span> Secure Payments Powered by SilverPay.
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8 text-center md:text-left">
+            <div class="flex flex-col gap-2">
+                <div class="text-sm text-gray-500 font-medium">
+                    &copy; 2026 drivingLynX Platform.
+                </div>
+                <div class="text-xs text-gray-600">Secure Payments & Identity Verification included.</div>
             </div>
-            <div class="flex gap-6">
-                <a href="#" class="text-xs text-gray-600 hover:text-white uppercase tracking-widest">Privacy Policy</a>
-                <a href="#" class="text-xs text-gray-600 hover:text-white uppercase tracking-widest">User Agreement</a>
+            <div class="flex gap-8">
+                <a href="#" class="text-xs text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Safety Center</a>
+                <a href="#" class="text-xs text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Privacy</a>
+                <a href="#" class="text-xs text-gray-500 hover:text-white uppercase tracking-widest transition-colors">Terms</a>
             </div>
         </div>
     </footer>
@@ -150,30 +165,30 @@
         const contentData = {
             learner: [
                 { 
-                    title: "Verified Supervisors", 
-                    desc: "Browse background-checked drivers with 10+ years of clean road history.", 
+                    title: "Verified Mentors", 
+                    desc: "Every mentor undergoes a strict background check and has held a full license for 10+ years.", 
                     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
-                    cta: "Find a Mentor"
+                    cta: "Browse Local Mentors"
                 },
                 { 
-                    title: "Flexible Bookings", 
-                    desc: "Practice for an hour or a weekend. You set the schedule and pick-up point.", 
-                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
-                    cta: "View Calendar"
+                    title: "Book by the Hour", 
+                    desc: "Flexible practice sessions that fit your schedule. No expensive long-term contracts required.", 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>`,
+                    cta: "Check Availability"
                 }
             ],
             driver: [
                 { 
-                    title: "Earn Extra Income", 
-                    desc: "Turn your daily commute or free hours into earnings by helping the next generation.", 
+                    title: "Monetize Your Drive", 
+                    desc: "Turn your passenger seat into extra income while helping someone gain vital road confidence.", 
                     icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
-                    cta: "Estimate Earnings"
+                    cta: "Calculate Earnings"
                 },
                 { 
-                    title: "Full Coverage", 
-                    desc: "All drivingLynX sessions are protected by our bespoke third-party liability insurance.", 
-                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`,
-                    cta: "Learn About Safety"
+                    title: "Lynx Protection", 
+                    desc: "We provide secondary liability coverage for every booking, giving you peace of mind while you teach.", 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><polyline points="20 6 9 17 4 12"></polyline></svg>`,
+                    cta: "Read Safety Policies"
                 }
             ]
         };
@@ -184,7 +199,6 @@
             const dTab = document.getElementById('driverTab');
             const indicator = document.getElementById('tabIndicator');
 
-            // Tab State Management (Aria + Visuals)
             if (type === 'learner') {
                 lTab.setAttribute('aria-selected', 'true');
                 dTab.setAttribute('aria-selected', 'false');
@@ -201,7 +215,6 @@
                 indicator.style.transform = 'translateX(100%) translateX(-4px)';
             }
 
-            // Render with transition
             frame.style.opacity = '0';
             
             setTimeout(() => {
@@ -224,7 +237,6 @@
             }, 150);
         }
 
-        // Initialize App
         window.onload = () => switchView('learner');
     </script>
 </body>
