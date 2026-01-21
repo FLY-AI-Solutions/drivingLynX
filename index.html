@@ -1,0 +1,231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>drivingLynX | Connect & Learn Safely</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --silver-primary: #bdc3c7;
+            --silver-dark: #2c3e50;
+            --bg-deep: #0a0a0a;
+        }
+
+        body {
+            background-color: var(--bg-deep);
+            color: #f1f1f1;
+            font-family: 'Inter', sans-serif;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        /* Improved Visual Hierarchy for Logo */
+        .metallic-text {
+            background: linear-gradient(135deg, #ffffff 0%, #a1a1a1 50%, #707070 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        /* Focus States for Accessibility */
+        *:focus-visible {
+            outline: 2px solid #ffffff;
+            outline-offset: 4px;
+        }
+
+        /* Affordance & Feedback */
+        .glass-card {
+            background: rgba(255, 255, 255, 0.04);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .glass-card:hover {
+            border-color: rgba(255, 255, 255, 0.4);
+            transform: translateY(-4px);
+            background: rgba(255, 255, 255, 0.07);
+        }
+
+        .btn-silver {
+            background: linear-gradient(145deg, #f8f9fa, #9ea7af);
+            color: #000;
+            box-shadow: 0 4px 0px rgba(0,0,0,0.2);
+            transition: all 0.2s ease;
+        }
+
+        .btn-silver:active {
+            transform: translateY(2px);
+            box-shadow: 0 1px 0px rgba(0,0,0,0.2);
+        }
+
+        /* Smooth tab indicator */
+        .tab-indicator {
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .active-tab {
+            color: white !important;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <!-- Header / Navigation -->
+    <header class="sticky top-0 z-50 bg-black/80 backdrop-blur-md border-b border-white/10">
+        <nav class="max-w-7xl mx-auto px-6 h-20 flex justify-between items-center" aria-label="Main Navigation">
+            <div class="flex items-center gap-4">
+                <div class="w-12 h-12 bg-gradient-to-br from-white/20 to-transparent rounded-xl flex items-center justify-center border border-white/20 shadow-inner" aria-hidden="true">
+                    <span class="text-lg font-black tracking-tighter">LX</span>
+                </div>
+                <h1 class="text-2xl font-black tracking-tighter metallic-text uppercase">drivingLynX</h1>
+            </div>
+            
+            <div class="hidden md:flex items-center gap-8">
+                <ul class="flex gap-8 text-sm font-semibold text-gray-400">
+                    <li><a href="#" class="hover:text-white transition-colors">How it Works</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Safety</a></li>
+                    <li><a href="#" class="hover:text-white transition-colors">Trust</a></li>
+                </ul>
+                <button class="px-6 py-2 border border-white/20 rounded-full text-sm font-bold hover:bg-white/5 transition-all">
+                    Sign In
+                </button>
+            </div>
+
+            <!-- Mobile Menu Placeholder -->
+            <button class="md:hidden p-2" aria-label="Open Menu">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16m-7 6h7"/></svg>
+            </button>
+        </nav>
+    </header>
+
+    <!-- Hero / Action Area -->
+    <main class="flex-grow max-w-7xl mx-auto w-full px-6 py-16">
+        <section class="text-center mb-16">
+            <h2 class="text-4xl md:text-6xl font-black mb-6 tracking-tight">Practice makes perfect.<br><span class="text-gray-500">Lynx makes it easy.</span></h2>
+            <p class="text-gray-400 text-lg md:text-xl max-w-2xl mx-auto leading-relaxed">
+                We bridge the gap between getting your permit and passing your test by connecting you with trusted local supervisors.
+            </p>
+        </section>
+
+        <!-- User Role Selection (HCI: Mental Model & Tab Pattern) -->
+        <div class="flex flex-col items-center mb-12">
+            <div class="relative bg-white/5 p-1 rounded-2xl border border-white/10 w-full max-w-md flex" role="tablist">
+                <button id="learnerTab" role="tab" aria-selected="true" aria-controls="contentFrame" 
+                    onclick="switchView('learner')" 
+                    class="flex-1 py-3 px-4 rounded-xl text-sm font-bold z-10 transition-colors active-tab">
+                    Find a Mentor
+                </button>
+                <button id="driverTab" role="tab" aria-selected="false" aria-controls="contentFrame" 
+                    onclick="switchView('driver')" 
+                    class="flex-1 py-3 px-4 rounded-xl text-sm font-bold z-10 transition-colors text-gray-500">
+                    Start Mentoring
+                </button>
+                <!-- Physical feedback indicator -->
+                <div id="tabIndicator" class="absolute inset-y-1 left-1 w-[calc(50%-4px)] bg-white/10 rounded-xl tab-indicator shadow-xl border border-white/10"></div>
+            </div>
+        </div>
+
+        <!-- Dynamic Content (HCI: Consistency & Recognition over Recall) -->
+        <div id="contentFrame" class="grid md:grid-cols-2 gap-8" aria-live="polite">
+            <!-- Dynamic Content Injected Here -->
+        </div>
+    </main>
+
+    <!-- Trust Footer -->
+    <footer class="bg-black py-12 px-6 border-t border-white/5">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="text-sm text-gray-500 font-medium">
+                &copy; 2026 drivingLynX Platform. <span class="mx-2 text-white/10">|</span> Secure Payments Powered by SilverPay.
+            </div>
+            <div class="flex gap-6">
+                <a href="#" class="text-xs text-gray-600 hover:text-white uppercase tracking-widest">Privacy Policy</a>
+                <a href="#" class="text-xs text-gray-600 hover:text-white uppercase tracking-widest">User Agreement</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        const contentData = {
+            learner: [
+                { 
+                    title: "Verified Supervisors", 
+                    desc: "Browse background-checked drivers with 10+ years of clean road history.", 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"></path></svg>`,
+                    cta: "Find a Mentor"
+                },
+                { 
+                    title: "Flexible Bookings", 
+                    desc: "Practice for an hour or a weekend. You set the schedule and pick-up point.", 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>`,
+                    cta: "View Calendar"
+                }
+            ],
+            driver: [
+                { 
+                    title: "Earn Extra Income", 
+                    desc: "Turn your daily commute or free hours into earnings by helping the next generation.", 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><line x1="12" y1="1" x2="12" y2="23"></line><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"></path></svg>`,
+                    cta: "Estimate Earnings"
+                },
+                { 
+                    title: "Full Coverage", 
+                    desc: "All drivingLynX sessions are protected by our bespoke third-party liability insurance.", 
+                    icon: `<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="text-white"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z"></path><polyline points="17 21 17 13 7 13 7 21"></polyline><polyline points="7 3 7 8 15 8"></polyline></svg>`,
+                    cta: "Learn About Safety"
+                }
+            ]
+        };
+
+        function switchView(type) {
+            const frame = document.getElementById('contentFrame');
+            const lTab = document.getElementById('learnerTab');
+            const dTab = document.getElementById('driverTab');
+            const indicator = document.getElementById('tabIndicator');
+
+            // Tab State Management (Aria + Visuals)
+            if (type === 'learner') {
+                lTab.setAttribute('aria-selected', 'true');
+                dTab.setAttribute('aria-selected', 'false');
+                lTab.classList.add('active-tab');
+                dTab.classList.remove('active-tab');
+                dTab.classList.add('text-gray-500');
+                indicator.style.transform = 'translateX(0)';
+            } else {
+                dTab.setAttribute('aria-selected', 'true');
+                lTab.setAttribute('aria-selected', 'false');
+                dTab.classList.add('active-tab');
+                lTab.classList.remove('active-tab');
+                lTab.classList.add('text-gray-500');
+                indicator.style.transform = 'translateX(100%) translateX(-4px)';
+            }
+
+            // Render with transition
+            frame.style.opacity = '0';
+            
+            setTimeout(() => {
+                frame.innerHTML = contentData[type].map(item => `
+                    <div class="glass-card p-10 flex flex-col h-full rounded-2xl group">
+                        <div class="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center mb-8 border border-white/5 group-hover:scale-110 transition-transform">
+                            ${item.icon}
+                        </div>
+                        <h3 class="text-2xl font-bold mb-4 tracking-tight">${item.title}</h3>
+                        <p class="text-gray-400 text-lg mb-8 leading-relaxed flex-grow">
+                            ${item.desc}
+                        </p>
+                        <button class="btn-silver w-full py-4 rounded-xl font-black uppercase text-xs tracking-[0.2em] shadow-lg">
+                            ${item.cta}
+                        </button>
+                    </div>
+                `).join('');
+                frame.style.opacity = '1';
+                frame.classList.add('transition-opacity', 'duration-500');
+            }, 150);
+        }
+
+        // Initialize App
+        window.onload = () => switchView('learner');
+    </script>
+</body>
+</html>
