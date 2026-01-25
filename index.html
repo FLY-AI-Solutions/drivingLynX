@@ -308,130 +308,151 @@
     </div>
 
     <script>
-        // --- State ---
-        let userRole = 'learner'; // 'learner' or 'mentor'
-        let currentStep = 1;
-        const totalSteps = 4;
-        let hasCar = false;
+        // --- Configuration ---
+const API_BASE_URL = "https://jerin-api.flyai.online/x003/api";
 
-        // --- Splash ---
-        window.onload = () => setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 2000);
+// --- State Management ---
+let userRole = 'learner'; 
+let currentStep = 1;
+const totalSteps = 4;
+let hasCar = false;
 
-        // --- Modal Logic ---
-        function openModal(mode, role) {
-            document.getElementById('authModal').classList.replace('hidden', 'flex');
-            const wizardForm = document.getElementById('wizardForm');
-            const loginSec = document.getElementById('loginSection');
-            const controls = document.getElementById('wizardControls');
-            const progress = document.getElementById('wizardProgress');
+// --- Splash Screen ---
+window.onload = () => {
+    setTimeout(() => {
+        document.getElementById('splash').style.transform = 'translateY(-100%)';
+        checkAuthStatus();
+    }, 2000);
+};
 
-            if (mode === 'login') {
-                loginSec.classList.remove('hidden-section');
-                controls.classList.add('hidden');
-                progress.classList.add('hidden');
-                hideSteps();
-            } else {
-                userRole = role;
-                loginSec.classList.add('hidden-section');
-                controls.classList.remove('hidden');
-                progress.classList.remove('hidden');
-                currentStep = 1;
-                showStep(1);
-                updateLabels();
-            }
-        }
+function checkAuthStatus() {
+    const user = JSON.parse(localStorage.getItem('lynx_user'));
+    if (user) {
+        showDashboard(user);
+    }
+}
 
-        function closeModal() {
-            document.getElementById('authModal').classList.replace('flex', 'hidden');
-        }
+// --- API Integration: Registration ---
+async function handleRegistration(e) {
+    e.preventDefault();
+    const btn = document.getElementById('nextBtn');
+    btn.disabled = true;
+    btn.innerText = "CREATING ACCOUNT...";
 
-        // --- Wizard Navigation ---
-        function hideSteps() {
-            for(let i=1; i<=totalSteps; i++) {
-                document.getElementById(`step${i}`)?.classList.add('hidden-section');
-            }
-        }
+    // Gather data from inputs (Simplified for example - ensure IDs match or use FormData)
+    const formData = {
+        role: userRole,
+        first_name: document.querySelector('#step1 input[placeholder="First Name"]').value,
+        last_name: document.querySelector('#step1 input[placeholder="Last Name"]').value,
+        email: document.querySelector('#step1 input[placeholder="Email Address"]').value,
+        password: document.querySelector('#step1 input[placeholder="Create Password"]').value,
+        license_number: document.querySelector('#step2 input').value,
+        has_car: hasCar,
+        car_make_model: document.querySelector('#carDetailsForm input[placeholder*="Make"]').value || null,
+        car_plate: document.querySelector('#carDetailsForm input[placeholder="License Plate"]').value || null
+    };
 
-        function showStep(step) {
-            hideSteps();
-            document.getElementById(`step${step}`).classList.remove('hidden-section');
-            
-            // Progress Bar
-            document.getElementById('stepCount').innerText = `${step}/${totalSteps}`;
-            document.getElementById('progressBar').style.width = `${(step/totalSteps)*100}%`;
-            
-            // Update Next Button Text
-            const nextBtn = document.getElementById('nextBtn');
-            nextBtn.innerText = step === totalSteps ? "FINISH REGISTRATION" : "CONTINUE";
-            nextBtn.type = step === totalSteps ? "submit" : "button";
-        }
+    try {
+        const response = await fetch(`${API_BASE_URL}/register`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(formData)
+        });
 
-        function changeStep(dir) {
-            if (dir === 1 && currentStep < totalSteps) {
-                currentStep++;
-                showStep(currentStep);
-            } else if (dir === -1 && currentStep > 1) {
-                currentStep--;
-                showStep(currentStep);
-            }
-        }
+        if (!response.ok) throw new Error(await response.text());
 
-        function updateLabels() {
-            const licenseTitle = document.getElementById('licenseTitle');
-            const stepLabel = document.getElementById('stepLabel');
-            const carSubtext = document.getElementById('carSubtext');
+        alert("Registration Successful! Please login.");
+        openModal('login');
+    } catch (err) {
+        alert("Registration Failed: " + err.message);
+    } finally {
+        btn.disabled = false;
+        btn.innerText = "FINISH REGISTRATION";
+    }
+}
 
-            if (userRole === 'mentor') {
-                licenseTitle.innerText = "Driver's License (Full)";
-                stepLabel.innerText = "Mentor Onboarding";
-                carSubtext.innerText = "Will you use your vehicle for teaching?";
-            } else {
-                licenseTitle.innerText = "Learner's Permit";
-                stepLabel.innerText = "Learner Onboarding";
-                carSubtext.innerText = "Do you have access to a vehicle for practice?";
-            }
-        }
+// --- API Integration: Login ---
+async function loginAction() {
+    const email = document.querySelector('#loginSection input[type="email"]').value;
+    const password = document.querySelector('#loginSection input[type="password"]').value;
 
-        function toggleCarDetails(hasVehicle) {
-            hasCar = hasVehicle;
-            const details = document.getElementById('carDetailsForm');
-            const insuranceInput = document.getElementById('personalInsuranceInput');
-            
-            if (hasVehicle) {
-                details.classList.remove('hidden');
-                insuranceInput.classList.remove('hidden');
-            } else {
-                details.classList.add('hidden');
-                insuranceInput.classList.add('hidden');
-            }
-        }
+    try {
+        const response = await fetch(`${API_BASE_URL}/login`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, password })
+        });
 
-        // --- Simulation Logic ---
-        function handleRegistration(e) {
-            e.preventDefault();
-            const btn = document.getElementById('nextBtn');
-            btn.innerText = "VERIFYING DOCS...";
-            
-            setTimeout(() => {
-                closeModal();
-                loginSimulation();
-            }, 1500);
-        }
+        if (!response.ok) throw new Error("Invalid credentials");
 
-        function loginSimulation() {
-            closeModal();
-            document.getElementById('landingView').classList.add('hidden');
-            document.getElementById('dashboardView').classList.remove('hidden');
-            document.getElementById('navAuthButtons').classList.add('hidden');
-            document.getElementById('navUserArea').classList.remove('hidden');
-            
-            const nameDisplay = document.getElementById('userNameDisplay');
-            nameDisplay.innerText = userRole === 'mentor' ? 'Mentor' : 'Learner';
-        }
+        const data = await response.json();
+        localStorage.setItem('lynx_user', JSON.stringify(data.user));
+        showDashboard(data.user);
+        closeModal();
+    } catch (err) {
+        alert(err.message);
+    }
+}
 
-        function goHome() {
-            window.location.reload();
-        }
+// --- API Integration: Fetch Mentors ---
+async function loadMentors(hasCarOnly = false) {
+    const grid = document.querySelector('#dashboardView .grid');
+    grid.innerHTML = '<p class="text-silver-dim">Searching for mentors...</p>';
+
+    try {
+        const response = await fetch(`${API_BASE_URL}/mentors?has_car_only=${hasCarOnly}`);
+        const mentors = await response.json();
+
+        grid.innerHTML = mentors.map(mentor => `
+            <div class="glass-panel p-6 hover:border-white/30 transition-all anim-entry">
+                <div class="flex justify-between items-start mb-4">
+                    <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center border-2 border-white/20">
+                        ${mentor.first_name[0]}
+                    </div>
+                    <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded border border-green-500/30">VERIFIED</span>
+                </div>
+                <h3 class="text-xl font-bold">${mentor.first_name} ${mentor.last_name}</h3>
+                <p class="text-xs text-gray-400 mb-4">Certified drivingLynX Mentor</p>
+                <div class="space-y-2 mb-6">
+                    <div class="flex items-center gap-2 text-xs text-gray-300">
+                        <span>✓ License: ${mentor.license_number.replace(/./g, '*')}</span>
+                    </div>
+                    ${mentor.has_car ? 
+                        `<div class="flex items-center gap-2 text-xs text-white font-bold bg-white/10 p-2 rounded">
+                            <span>🚗 Vehicle: ${mentor.car_make_model}</span>
+                        </div>` : 
+                        `<div class="flex items-center gap-2 text-xs text-gray-500 bg-black/20 p-2 rounded">
+                            <span>🚫 Uses Learner's Car</span>
+                        </div>`
+                    }
+                </div>
+                <button class="btn-silver w-full py-3 rounded-xl text-xs">Book Session</button>
+            </div>
+        `).join('');
+    } catch (err) {
+        grid.innerHTML = '<p class="text-red-400">Error loading mentors.</p>';
+    }
+}
+
+// --- UI Logic ---
+function showDashboard(user) {
+    document.getElementById('landingView').classList.add('hidden');
+    document.getElementById('dashboardView').classList.remove('hidden');
+    document.getElementById('navAuthButtons').classList.add('hidden');
+    document.getElementById('navUserArea').classList.remove('hidden');
+    document.getElementById('userNameDisplay').innerText = user.first_name;
+    
+    // Auto-load mentors if the logged-in user is a learner
+    if (user.role === 'learner') loadMentors();
+}
+
+function logout() {
+    localStorage.removeItem('lynx_user');
+    window.location.reload();
+}
+
+// --- Previous Navigation Functions (Modal/Step control) remain the same ---
+// Note: Ensure you update your "ENTER DASHBOARD" button to call loginAction()
     </script>
 </body>
 </html>
