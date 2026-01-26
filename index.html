@@ -87,20 +87,7 @@
             <button onclick="switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Set Availability</button>
             <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
         </div>
-        <!-- <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
-            <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4">Find Mentor</button>
-            <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Requests</button>
-            <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
-        </div> -->
-        <!-- 0-. Edited afaiyaz -->
-        <!-- <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
-            <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4">Find Mentor</button>
-            <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Requests</button>
-            
-            <button onclick="showAvailabilityEditor()" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Set Availability</button>
-            
-            <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
-        </div> -->
+        
         <div id="viewManageAvailability" class="hidden">
             <h2 class="text-2xl font-bold mb-6">Set Your Weekly Availability</h2>
             <div class="glass-panel p-8">
@@ -369,18 +356,24 @@
 
         // --- Navigation ---
         function switchTab(tab) {
-            // 1. Hide every possible view
-            const views = ['viewFind','viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
+            // 1. Hide ALL views first
+            const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
             views.forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            // 2. Reset all tabs to inactive state
+            // 2. Reset ALL tab styles to gray
             const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'];
             tabs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
             });
-        
-            // 3. Show the requested view
+
+            // 3. ROLE PROTECTION: Force mentor tabs to stay hidden if user is a learner
+            if (currentUser && currentUser.role !== 'mentor') {
+                document.getElementById('tabRequests').classList.add('hidden');
+                document.getElementById('tabAvail').classList.add('hidden');
+            }
+
+            // 4. Show the selected view and highlight the tab
             if(tab === 'find') {
                 document.getElementById('viewFind').classList.remove('hidden');
                 document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
@@ -397,19 +390,19 @@
                 showAvailabilityEditor();
             }
         }
-        
         // function switchTab(tab) {
-        //     // Hide ALL possible views
-        //     ['viewFind','viewProfile','viewPayment','viewRequests','viewSession', 'viewManageAvailability'].forEach(id => 
-        //         document.getElementById(id).classList.add('hidden')
-        //     );
+        //     // 1. Hide every possible view
+        //     const views = ['viewFind','viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
+        //     views.forEach(id => document.getElementById(id).classList.add('hidden'));
             
-        //     // Reset all tab styles to gray
-        //     ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'].forEach(id => {
+        //     // 2. Reset all tabs to inactive state
+        //     const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'];
+        //     tabs.forEach(id => {
         //         const el = document.getElementById(id);
         //         if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
         //     });
         
+        //     // 3. Show the requested view
         //     if(tab === 'find') {
         //         document.getElementById('viewFind').classList.remove('hidden');
         //         document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
@@ -423,34 +416,11 @@
         //     } else if(tab === 'avail') {
         //         document.getElementById('viewManageAvailability').classList.remove('hidden');
         //         document.getElementById('tabAvail').className = 'text-white font-bold border-b-2 border-white pb-4';
-        //         showAvailabilityEditor(); // This handles loading the data
+        //         showAvailabilityEditor();
         //     }
         // }
-        // function switchTab(tab) {
-        //     ['viewFind','viewProfile','viewPayment','viewRequests','viewSession'].forEach(id => 
-        //         document.getElementById(id).classList.add('hidden')
-        //     );
-            
-        //     // Reset Tab Styles
-        //     document.getElementById('tabFind').className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
-        //     document.getElementById('tabSession').className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
-        //     const reqTab = document.getElementById('tabRequests');
-        //     if(reqTab) reqTab.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4 hidden';
-
-        //     if(tab === 'find') {
-        //         document.getElementById('viewFind').classList.remove('hidden');
-        //         document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
-        //     } else if(tab === 'requests') {
-        //         document.getElementById('viewRequests').classList.remove('hidden');
-        //         if(reqTab) reqTab.className = 'text-white font-bold border-b-2 border-white pb-4';
-        //         loadRequests();
-        //     } else if(tab === 'session') {
-        //         document.getElementById('viewSession').classList.remove('hidden');
-        //         document.getElementById('tabSession').className = 'text-white font-bold border-b-2 border-white pb-4';
-        //     }
-            
-        //     if(currentUser && currentUser.role === 'mentor' && reqTab) reqTab.classList.remove('hidden');
-        // }
+        
+        
 
         // --- View Logic: Mentor Profile ---
         async function openMentorProfile(id) {
