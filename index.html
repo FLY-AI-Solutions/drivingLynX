@@ -11,7 +11,7 @@
             --bg-dark: #050505;
             --silver: #e5e5e5;
             --silver-dim: #a3a3a3;
-            --accent-blue: #3b82f6; /* Trust color for verification */
+            --accent-blue: #3b82f6;
         }
 
         body {
@@ -21,7 +21,6 @@
             overflow-x: hidden;
         }
 
-        /* --- Metallic Typography --- */
         .metallic-text {
             background: linear-gradient(135deg, #ffffff 0%, #b3b3b3 50%, #666666 100%);
             -webkit-background-clip: text;
@@ -29,7 +28,6 @@
             font-weight: 900;
         }
 
-        /* --- Glassmorphism Panels --- */
         .glass-panel {
             background: rgba(255, 255, 255, 0.03);
             backdrop-filter: blur(24px);
@@ -38,7 +36,6 @@
             box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
         }
 
-        /* --- Custom Inputs & Controls --- */
         .lynx-input {
             background: rgba(255,255,255,0.05);
             border: 1px solid rgba(255,255,255,0.1);
@@ -56,58 +53,84 @@
             font-weight: 800;
             text-transform: uppercase;
             letter-spacing: 0.05em;
-            transition: transform 0.2s;
+            transition: transform 0.2s, opacity 0.2s;
         }
         .btn-silver:active { transform: scale(0.98); }
+        .btn-silver:disabled { opacity: 0.5; cursor: not-allowed; }
 
-        /* --- Toggle Switch for Car Availability --- */
-        .toggle-checkbox:checked {
-            right: 0;
-            border-color: #fff;
-        }
-        .toggle-checkbox:checked + .toggle-label {
-            background-color: #fff;
-        }
-
-        /* --- Animations --- */
         @keyframes slideUp { from { transform: translateY(20px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
         .anim-entry { animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards; }
         
         .hidden-section { display: none; }
+
+        /* Error Banner Style */
+        #globalErrorOverlay {
+            display: none;
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            right: 20px;
+            background: rgba(220, 38, 38, 0.95);
+            color: white;
+            padding: 16px;
+            border-radius: 12px;
+            z-index: 1000;
+            font-family: monospace;
+            font-size: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            border: 1px solid rgba(255,255,255,0.2);
+        }
     </style>
 </head>
 <body>
 
-    <!-- Splash Screen (Same branding) -->
-    <div id="splash" class="fixed inset-0 bg-[#050505] z-50 flex flex-col items-center justify-center transition-transform duration-1000 ease-in-out">
-        <img src="IMG_0645.png" alt="Logo" class="w-24 h-24 mb-6 animate-pulse">
+    <!-- Global Error Overlay -->
+    <div id="globalErrorOverlay">
+        <div class="flex justify-between items-start mb-2">
+            <strong class="text-sm">⚠️ DETAILED SCRIPT ERROR</strong>
+            <button onclick="this.parentElement.parentElement.style.display='none'" class="text-white/50 hover:text-white">CLOSE</button>
+        </div>
+        <div id="errorDetails"></div>
+    </div>
+
+    <!-- Splash Screen -->
+    <div id="splash" class="fixed inset-0 bg-[#050505] z-[200] flex flex-col items-center justify-center transition-transform duration-1000 ease-in-out">
+        <div class="w-24 h-24 mb-6 bg-white/10 rounded-full flex items-center justify-center animate-pulse">
+             <span class="text-white font-black text-2xl">DL</span>
+        </div>
         <h1 class="text-6xl metallic-text tracking-tighter">drivingLynX</h1>
     </div>
 
     <!-- Main Navigation -->
     <nav class="h-20 border-b border-white/5 flex justify-between items-center px-6 sticky top-0 bg-black/80 backdrop-blur-md z-40">
         <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
-            <img src="IMG_0645.png" alt="Logo" class="h-8 w-auto">
+            <div class="h-8 w-8 bg-white rounded-sm flex items-center justify-center">
+                 <span class="text-black font-black text-xs">DL</span>
+            </div>
             <span class="metallic-text text-lg hidden sm:block">drivingLynX</span>
         </div>
+        
         <div id="navAuthButtons" class="flex gap-4">
             <button onclick="openModal('login')" class="text-xs font-bold text-gray-400 hover:text-white">LOGIN</button>
-            <button onclick="startOnboarding()" class="btn-silver px-6 py-2 rounded-full text-xs">JOIN NOW</button>
+            <button onclick="openModal('register', 'learner')" class="btn-silver px-6 py-2 rounded-full text-xs">JOIN NOW</button>
         </div>
-        <div id="navUserArea" class="hidden flex items-center gap-3">
-            <span class="text-sm text-gray-400">Welcome, <span id="userNameDisplay" class="text-white font-bold">Driver</span></span>
-            <div class="w-8 h-8 rounded-full bg-white/10 border border-white/20"></div>
+
+        <div id="navUserArea" class="hidden flex items-center gap-6">
+            <div class="flex flex-col items-end">
+                <span class="text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="roleBadge">Learner</span>
+                <span id="userNameDisplay" class="text-white font-bold text-sm">Driver</span>
+            </div>
+            <button onclick="logout()" class="text-[10px] font-bold text-red-500 hover:text-red-400 border border-red-500/20 px-3 py-1 rounded">LOGOUT</button>
         </div>
     </nav>
 
-    <!-- LANDING PAGE (Slider View) -->
+    <!-- LANDING PAGE -->
     <main id="landingView" class="max-w-7xl mx-auto py-12 px-6">
         <div class="grid md:grid-cols-2 gap-6 h-[70vh]">
-            <!-- Learner Card -->
             <div onclick="openModal('register', 'learner')" class="glass-panel p-10 flex flex-col justify-end cursor-pointer group hover:bg-white/5 transition-all relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                 <div class="relative z-10">
-                    <h2 class="text-4xl font-black mb-2 group-hover:translate-x-2 transition-transform">I need a Mentor</h2>
+                    <h2 class="text-4xl font-black mb-2 group-hover:translate-x-2 transition-transform text-white">I need a Mentor</h2>
                     <p class="text-gray-400 mb-6">Book instant sessions. Use your car or request one.</p>
                     <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
                         <span>Permit Required</span> • <span>Insured</span>
@@ -115,11 +138,10 @@
                 </div>
             </div>
 
-            <!-- Mentor Card -->
             <div onclick="openModal('register', 'mentor')" class="glass-panel p-10 flex flex-col justify-end cursor-pointer group hover:bg-white/5 transition-all relative overflow-hidden">
                 <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
                 <div class="relative z-10">
-                    <h2 class="text-4xl font-black mb-2 group-hover:translate-x-2 transition-transform">I want to Mentor</h2>
+                    <h2 class="text-4xl font-black mb-2 group-hover:translate-x-2 transition-transform text-white">I want to Mentor</h2>
                     <p class="text-gray-400 mb-6">Earn by supervising. Flexible scheduling.</p>
                     <div class="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-white/50">
                         <span>Full License Req</span> • <span>Bg Check</span>
@@ -129,330 +151,457 @@
         </div>
     </main>
 
-    <!-- DASHBOARD VIEW (Scheduling) -->
+    <!-- DASHBOARD VIEW -->
     <main id="dashboardView" class="hidden max-w-7xl mx-auto py-12 px-6 anim-entry">
-        <div class="flex justify-between items-end mb-8">
+        <div class="flex flex-col md:flex-row justify-between items-start md:items-end mb-8 gap-4">
             <div>
-                <h2 class="text-3xl font-black metallic-text">Quick Schedule</h2>
-                <p class="text-gray-400 text-sm mt-1">Showing mentors available for <span class="text-white font-bold">Tomorrow, 10:00 AM</span></p>
+                <h2 class="text-3xl font-black metallic-text">Find Your Mentor</h2>
+                <p class="text-gray-400 text-sm mt-1">Showing verified experts available near you.</p>
             </div>
-            <!-- Filter for Car Availability -->
-            <div class="flex bg-white/5 rounded-lg p-1">
-                <button class="px-4 py-2 text-xs font-bold rounded-md bg-white text-black shadow-lg">All Mentors</button>
-                <button class="px-4 py-2 text-xs font-bold rounded-md text-gray-500 hover:text-white">Has Car Only</button>
+            
+            <div class="flex bg-white/5 rounded-lg p-1 border border-white/10">
+                <button id="filterAll" onclick="loadMentors(false)" class="px-4 py-2 text-xs font-bold rounded-md bg-white text-black shadow-lg transition-all">All Mentors</button>
+                <button id="filterCar" onclick="loadMentors(true)" class="px-4 py-2 text-xs font-bold rounded-md text-gray-400 hover:text-white transition-all">Has Car Only</button>
             </div>
         </div>
 
-        <!-- Mentors Grid -->
-        <div class="grid md:grid-cols-3 gap-6">
-            <!-- Mentor Card 1 -->
-            <div class="glass-panel p-6 hover:border-white/30 transition-all">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-full bg-gray-700 border-2 border-white/20"></div>
-                    <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded border border-green-500/30">VERIFIED</span>
-                </div>
-                <h3 class="text-xl font-bold">Sarah Jenkins</h3>
-                <p class="text-xs text-gray-400 mb-4">5 Years Experience • 4.9 ★</p>
-                
-                <div class="space-y-2 mb-6">
-                    <div class="flex items-center gap-2 text-xs text-gray-300">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span>Full License Verified</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-gray-300">
-                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Lynx Insurance Active</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-white font-bold bg-white/10 p-2 rounded">
-                        <span>🚗 Has Vehicle (Toyota Camry)</span>
-                    </div>
-                </div>
-                <button class="btn-silver w-full py-3 rounded-xl text-xs">Book Session ($40/hr)</button>
-            </div>
-
-            <!-- Mentor Card 2 -->
-            <div class="glass-panel p-6 hover:border-white/30 transition-all">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-full bg-gray-700 border-2 border-white/20"></div>
-                    <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded border border-green-500/30">VERIFIED</span>
-                </div>
-                <h3 class="text-xl font-bold">Mike Ross</h3>
-                <p class="text-xs text-gray-400 mb-4">12 Years Experience • 4.8 ★</p>
-                
-                <div class="space-y-2 mb-6">
-                    <div class="flex items-center gap-2 text-xs text-gray-300">
-                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        <span>Full License Verified</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-gray-300">
-                        <svg class="w-4 h-4 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                        <span>Lynx Insurance Active</span>
-                    </div>
-                    <div class="flex items-center gap-2 text-xs text-gray-500 bg-black/20 p-2 rounded border border-white/5">
-                        <span>🚫 Uses Your Car Only</span>
-                    </div>
-                </div>
-                <button class="btn-silver w-full py-3 rounded-xl text-xs">Book Session ($30/hr)</button>
-            </div>
+        <div id="mentorGrid" class="grid md:grid-cols-3 gap-6">
+            <!-- Mentors loaded via JS -->
         </div>
     </main>
 
-    <!-- REGISTRATION WIZARD MODAL -->
-    <div id="authModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/90 backdrop-blur-xl p-4">
-        <div class="glass-panel w-full max-w-lg p-8 relative overflow-hidden">
+    <!-- MODAL -->
+    <div id="authModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+        <div class="glass-panel w-full max-w-lg p-8 relative">
             <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
 
-            <!-- Steps Progress -->
-            <div id="wizardProgress" class="mb-6 hidden">
+            <!-- Progress -->
+            <div id="wizardProgress" class="mb-8">
                 <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
                     <span id="stepLabel">Identity</span>
                     <span id="stepCount">1/4</span>
                 </div>
                 <div class="h-1 bg-white/10 rounded-full overflow-hidden">
-                    <div id="progressBar" class="h-full bg-white transition-all duration-300" style="width: 25%"></div>
+                    <div id="progressBar" class="h-full bg-white transition-all duration-500" style="width: 25%"></div>
                 </div>
             </div>
 
-            <form id="wizardForm" onsubmit="handleRegistration(event)">
-                
-                <!-- Login View -->
+            <div id="statusMsg" class="mb-4 text-xs font-bold text-red-400 hidden"></div>
+
+            <form id="authForm" onsubmit="return false;">
+                <!-- Login -->
                 <div id="loginSection" class="hidden-section">
                     <h2 class="text-3xl font-black metallic-text mb-6">Welcome Back</h2>
-                    <input type="email" placeholder="Email" class="lynx-input mb-4" required>
-                    <input type="password" placeholder="Password" class="lynx-input mb-6" required>
-                    <button type="button" onclick="loginSimulation()" class="btn-silver w-full py-4 rounded-xl">ENTER DASHBOARD</button>
+                    <input type="email" id="loginEmail" placeholder="Email" class="lynx-input mb-4" required>
+                    <input type="password" id="loginPass" placeholder="Password" class="lynx-input mb-6" required>
+                    <button type="button" onclick="loginAction()" id="loginBtn" class="btn-silver w-full py-4 rounded-xl">ENTER DASHBOARD</button>
                 </div>
 
-                <!-- Step 1: Identity (Universal) -->
-                <div id="step1" class="hidden-section wizard-step">
-                    <h3 class="text-xl font-bold mb-4">Who are you?</h3>
+                <!-- Step 1: Identity -->
+                <div id="step1" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Account Basics</h3>
                     <div class="grid grid-cols-2 gap-4 mb-4">
-                        <input type="text" placeholder="First Name" class="lynx-input" required>
-                        <input type="text" placeholder="Last Name" class="lynx-input" required>
+                        <input type="text" id="regFirst" placeholder="First Name" class="lynx-input">
+                        <input type="text" id="regLast" placeholder="Last Name" class="lynx-input">
                     </div>
-                    <input type="email" placeholder="Email Address" class="lynx-input mb-4" required>
-                    <input type="password" placeholder="Create Password" class="lynx-input" required>
+                    <input type="email" id="regEmail" placeholder="Email Address" class="lynx-input mb-4">
+                    <input type="password" id="regPass" placeholder="Create Password" class="lynx-input">
                 </div>
 
-                <!-- Step 2: License (Dynamic Label) -->
-                <div id="step2" class="hidden-section wizard-step">
+                <!-- Step 2: License -->
+                <div id="step2" class="wizard-step hidden-section">
                     <h3 class="text-xl font-bold mb-2" id="licenseTitle">License Details</h3>
-                    <p class="text-xs text-gray-400 mb-4">We verify this with the DMV database.</p>
-                    
-                    <input type="text" placeholder="License / Permit Number" class="lynx-input mb-6" required>
-                    
-                    <div class="border-2 border-dashed border-white/20 rounded-xl p-8 text-center hover:bg-white/5 cursor-pointer transition-colors">
-                        <svg class="w-8 h-8 mx-auto text-gray-500 mb-2" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"></path><path d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
-                        <span class="text-xs font-bold uppercase tracking-widest text-gray-400">Upload Front of Card</span>
-                    </div>
+                    <p class="text-xs text-gray-400 mb-6">Required for verification.</p>
+                    <input type="text" id="regLicense" placeholder="License / Permit Number" class="lynx-input">
                 </div>
 
-                <!-- Step 3: Vehicle Logistics -->
-                <div id="step3" class="hidden-section wizard-step">
+                <!-- Step 3: Vehicle -->
+                <div id="step3" class="wizard-step hidden-section">
                     <h3 class="text-xl font-bold mb-2">Vehicle Availability</h3>
                     <p class="text-xs text-gray-400 mb-6" id="carSubtext">Do you have a car for lessons?</p>
 
                     <div class="flex gap-4 mb-6">
-                        <label class="flex-1 cursor-pointer">
-                            <input type="radio" name="hasCar" value="yes" class="peer sr-only" onchange="toggleCarDetails(true)">
-                            <div class="p-4 rounded-xl bg-white/5 border border-white/10 peer-checked:bg-white peer-checked:text-black text-center transition-all">
-                                <span class="font-bold">YES</span>
-                            </div>
-                        </label>
-                        <label class="flex-1 cursor-pointer">
-                            <input type="radio" name="hasCar" value="no" class="peer sr-only" onchange="toggleCarDetails(false)">
-                            <div class="p-4 rounded-xl bg-white/5 border border-white/10 peer-checked:bg-white peer-checked:text-black text-center transition-all">
-                                <span class="font-bold">NO</span>
-                            </div>
-                        </label>
+                        <button type="button" onclick="setHasCar(true)" id="carBtnYes" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">YES</button>
+                        <button type="button" onclick="setHasCar(false)" id="carBtnNo" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">NO</button>
                     </div>
 
                     <div id="carDetailsForm" class="hidden space-y-4 border-t border-white/10 pt-4">
-                        <input type="text" placeholder="Make & Model (e.g. Honda Civic)" class="lynx-input">
-                        <input type="text" placeholder="License Plate" class="lynx-input">
+                        <input type="text" id="regCarModel" placeholder="Make & Model (e.g. Honda Civic)" class="lynx-input">
+                        <input type="text" id="regCarPlate" placeholder="License Plate" class="lynx-input">
                     </div>
                 </div>
 
-                <!-- Step 4: Insurance & Safety -->
-                <div id="step4" class="hidden-section wizard-step">
-                    <h3 class="text-xl font-bold mb-4">Insurance & Protection</h3>
-                    
+                <!-- Step 4: Consent -->
+                <div id="step4" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Finalize</h3>
                     <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl mb-6">
-                        <div class="flex gap-3 mb-2">
-                            <svg class="w-5 h-5 text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
-                            <span class="font-bold text-sm text-blue-100">Lynx Liability Protection</span>
-                        </div>
-                        <p class="text-xs text-blue-200/70">All sessions booked on drivingLynX include secondary liability coverage.</p>
+                        <span class="font-bold text-xs text-blue-100">Lynx Liability Protection Active</span>
                     </div>
-
-                    <div id="personalInsuranceInput" class="hidden mb-6">
-                        <label class="text-xs font-bold uppercase tracking-widest text-gray-500 mb-2 block">Your Vehicle Insurance</label>
-                        <input type="text" placeholder="Policy Number" class="lynx-input mb-2">
-                        <input type="text" placeholder="Provider Name" class="lynx-input">
-                    </div>
-
-                    <label class="flex items-start gap-3 cursor-pointer p-2 hover:bg-white/5 rounded-lg">
-                        <input type="checkbox" required class="mt-1">
-                        <span class="text-xs text-gray-400">I agree to the Safety Guidelines. I certify my license is valid and not suspended.</span>
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="regConsent" class="mt-1">
+                        <span class="text-xs text-gray-400">I certify my license is valid and agree to the Safety Guidelines.</span>
                     </label>
                 </div>
 
                 <!-- Controls -->
-                <div id="wizardControls" class="flex gap-3 mt-8 hidden">
-                    <button type="button" onclick="changeStep(-1)" class="px-6 py-4 rounded-xl bg-white/5 font-bold text-gray-400 text-sm hover:bg-white/10">BACK</button>
+                <div id="wizardControls" class="flex gap-3 mt-8">
+                    <button type="button" id="backBtn" onclick="changeStep(-1)" class="px-6 py-4 rounded-xl bg-white/5 font-bold text-gray-500 text-sm hover:bg-white/10 transition-all">BACK</button>
                     <button type="button" id="nextBtn" onclick="changeStep(1)" class="flex-1 btn-silver py-4 rounded-xl">CONTINUE</button>
                 </div>
-
             </form>
         </div>
     </div>
 
     <script>
-        // --- Configuration ---
-const API_BASE_URL = "https://jerin-api.flyai.online/x003/api";
+        // --- 1. GLOBAL ERROR HANDLING ---
+        function reportError(msg, extra = '') {
+            const overlay = document.getElementById('globalErrorOverlay');
+            const details = document.getElementById('errorDetails');
+            if (overlay && details) {
+                overlay.style.display = 'block';
+                details.innerHTML = `<div><strong>Error:</strong> ${msg}</div><div class="mt-1 text-white/70">${extra}</div>`;
+            }
+            console.error("[DL Debug]", msg, extra);
+        }
 
-// --- State Management ---
-let userRole = 'learner'; 
-let currentStep = 1;
-const totalSteps = 4;
-let hasCar = false;
+        window.onerror = function(msg, url, lineNo, columnNo, error) {
+            reportError(msg, `Source: ${url.split('/').pop()} | Line: ${lineNo}:${columnNo}`);
+            return false;
+        };
 
-// --- Splash Screen ---
-window.onload = () => {
-    setTimeout(() => {
-        document.getElementById('splash').style.transform = 'translateY(-100%)';
-        checkAuthStatus();
-    }, 2000);
-};
+        window.onunhandledrejection = function(event) {
+            reportError("Unhandled Promise Rejection", event.reason);
+        };
 
-function checkAuthStatus() {
-    const user = JSON.parse(localStorage.getItem('lynx_user'));
-    if (user) {
-        showDashboard(user);
-    }
-}
+        // --- 2. CONFIGURATION & STATE ---
+        const API_URL = "https://jerin-api.flyai.online/x003/api";
+        let userRole = 'learner';
+        let currentStep = 1;
+        const totalSteps = 4;
+        let hasCar = false;
+        let isLoginMode = false;
 
-// --- API Integration: Registration ---
-async function handleRegistration(e) {
-    e.preventDefault();
-    const btn = document.getElementById('nextBtn');
-    btn.disabled = true;
-    btn.innerText = "CREATING ACCOUNT...";
+        // --- 3. SAFE STORAGE ---
+        const storage = {
+            set: (key, val) => {
+                try { localStorage.setItem(key, JSON.stringify(val)); } 
+                catch(e) { reportError("LocalStorage Set Failed", "Privacy settings may be blocking access."); }
+            },
+            get: (key) => {
+                try { 
+                    const item = localStorage.getItem(key);
+                    return item ? JSON.parse(item) : null;
+                } catch(e) { return null; }
+            },
+            remove: (key) => {
+                try { localStorage.removeItem(key); } catch(e) {}
+            }
+        };
 
-    // Gather data from inputs (Simplified for example - ensure IDs match or use FormData)
-    const formData = {
-        role: userRole,
-        first_name: document.querySelector('#step1 input[placeholder="First Name"]').value,
-        last_name: document.querySelector('#step1 input[placeholder="Last Name"]').value,
-        email: document.querySelector('#step1 input[placeholder="Email Address"]').value,
-        password: document.querySelector('#step1 input[placeholder="Create Password"]').value,
-        license_number: document.querySelector('#step2 input').value,
-        has_car: hasCar,
-        car_make_model: document.querySelector('#carDetailsForm input[placeholder*="Make"]').value || null,
-        car_plate: document.querySelector('#carDetailsForm input[placeholder="License Plate"]').value || null
-    };
+        // --- 4. INITIALIZATION ---
+        window.onload = () => {
+            try {
+                setTimeout(() => {
+                    const splash = document.getElementById('splash');
+                    if (splash) splash.style.transform = 'translateY(-100%)';
+                    checkAuth();
+                }, 2000);
+            } catch (e) {
+                reportError("App Initialization Failed", e.message);
+            }
+        };
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/register`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(formData)
-        });
+        function checkAuth() {
+            const user = storage.get('lynx_user');
+            if (user && user.first_name) showDashboard(user);
+        }
 
-        if (!response.ok) throw new Error(await response.text());
+        // --- 5. UI NAVIGATION ---
+        function openModal(mode, role = 'learner') {
+            const modal = document.getElementById('authModal');
+            if (!modal) return reportError("DOM Error", "Auth Modal not found");
 
-        alert("Registration Successful! Please login.");
-        openModal('login');
-    } catch (err) {
-        alert("Registration Failed: " + err.message);
-    } finally {
-        btn.disabled = false;
-        btn.innerText = "FINISH REGISTRATION";
-    }
-}
+            const loginSec = document.getElementById('loginSection');
+            const progress = document.getElementById('wizardProgress');
+            const controls = document.getElementById('wizardControls');
+            const status = document.getElementById('statusMsg');
 
-// --- API Integration: Login ---
-async function loginAction() {
-    const email = document.querySelector('#loginSection input[type="email"]').value;
-    const password = document.querySelector('#loginSection input[type="password"]').value;
+            if (status) status.classList.add('hidden');
+            modal.classList.replace('hidden', 'flex');
+            
+            if (mode === 'login') {
+                isLoginMode = true;
+                if (loginSec) loginSec.classList.remove('hidden-section');
+                if (progress) progress.classList.add('hidden');
+                if (controls) controls.classList.add('hidden');
+                hideSteps();
+            } else {
+                isLoginMode = false;
+                userRole = role;
+                if (loginSec) loginSec.classList.add('hidden-section');
+                if (progress) progress.classList.remove('hidden');
+                if (controls) controls.classList.remove('hidden');
+                currentStep = 1;
+                updateLabels();
+                showStep(1);
+            }
+        }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/login`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email, password })
-        });
+        function closeModal() {
+            const modal = document.getElementById('authModal');
+            if (modal) modal.classList.replace('flex', 'hidden');
+        }
 
-        if (!response.ok) throw new Error("Invalid credentials");
+        function hideSteps() {
+            document.querySelectorAll('.wizard-step').forEach(s => s.classList.add('hidden-section'));
+        }
 
-        const data = await response.json();
-        localStorage.setItem('lynx_user', JSON.stringify(data.user));
-        showDashboard(data.user);
-        closeModal();
-    } catch (err) {
-        alert(err.message);
-    }
-}
+        function showStep(step) {
+            hideSteps();
+            const stepEl = document.getElementById(`step${step}`);
+            if (stepEl) stepEl.classList.remove('hidden-section');
+            
+            const stepCount = document.getElementById('stepCount');
+            const progress = document.getElementById('progressBar');
+            if (stepCount) stepCount.innerText = `${step}/${totalSteps}`;
+            if (progress) progress.style.width = `${(step/totalSteps)*100}%`;
+            
+            const nextBtn = document.getElementById('nextBtn');
+            const backBtn = document.getElementById('backBtn');
+            
+            if (backBtn) backBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
+            if (nextBtn) {
+                nextBtn.innerText = step === totalSteps ? "FINISH REGISTRATION" : "CONTINUE";
+            }
+        }
 
-// --- API Integration: Fetch Mentors ---
-async function loadMentors(hasCarOnly = false) {
-    const grid = document.querySelector('#dashboardView .grid');
-    grid.innerHTML = '<p class="text-silver-dim">Searching for mentors...</p>';
+        function changeStep(dir) {
+            if (dir === 1) {
+                if (currentStep < totalSteps) {
+                    currentStep++;
+                    showStep(currentStep);
+                } else {
+                    handleRegistration();
+                }
+            } else {
+                currentStep--;
+                showStep(currentStep);
+            }
+        }
 
-    try {
-        const response = await fetch(`${API_BASE_URL}/mentors?has_car_only=${hasCarOnly}`);
-        const mentors = await response.json();
+        function updateLabels() {
+            const stepLabel = document.getElementById('stepLabel');
+            const licenseTitle = document.getElementById('licenseTitle');
+            const carSubtext = document.getElementById('carSubtext');
 
-        grid.innerHTML = mentors.map(mentor => `
-            <div class="glass-panel p-6 hover:border-white/30 transition-all anim-entry">
-                <div class="flex justify-between items-start mb-4">
-                    <div class="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center border-2 border-white/20">
-                        ${mentor.first_name[0]}
+            if (stepLabel) stepLabel.innerText = `${userRole.toUpperCase()} ONBOARDING`;
+            if (licenseTitle) licenseTitle.innerText = userRole === 'mentor' ? "Driver's License (Full)" : "Learner's Permit";
+            if (carSubtext) carSubtext.innerText = userRole === 'mentor' ? "Will you provide a vehicle?" : "Do you have access to a car?";
+        }
+
+        function setHasCar(val) {
+            hasCar = val;
+            const yes = document.getElementById('carBtnYes');
+            const no = document.getElementById('carBtnNo');
+            const details = document.getElementById('carDetailsForm');
+
+            if (val) {
+                if (yes) yes.className = "flex-1 p-4 rounded-xl bg-white text-black font-bold transition-all";
+                if (no) no.className = "flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all";
+                if (details) details.classList.remove('hidden');
+            } else {
+                if (no) no.className = "flex-1 p-4 rounded-xl bg-white text-black font-bold transition-all";
+                if (yes) yes.className = "flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all";
+                if (details) details.classList.add('hidden');
+            }
+        }
+
+        // --- 6. API ACTIONS ---
+
+        async function loginAction() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPass').value;
+            const btn = document.getElementById('loginBtn');
+
+            if (!email || !password) return showStatus("Please fill all fields");
+
+            btn.disabled = true;
+            btn.innerText = "AUTHENTICATING...";
+
+            try {
+                const res = await fetch(`${API_URL}/login`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+
+                if (!res.ok) {
+                    const errBody = await res.json().catch(() => ({ detail: "Unknown server error" }));
+                    throw new Error(errBody.detail || "Invalid credentials");
+                }
+
+                const data = await res.json();
+                storage.set('lynx_user', data.user);
+                showDashboard(data.user);
+                closeModal();
+            } catch (err) {
+                showStatus(err.message);
+                reportError("Login API Failed", err.message);
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "ENTER DASHBOARD";
+            }
+        }
+
+        async function handleRegistration() {
+            const btn = document.getElementById('nextBtn');
+            const consent = document.getElementById('regConsent');
+
+            if (consent && !consent.checked) return showStatus("Please agree to safety guidelines");
+
+            const payload = {
+                role: userRole,
+                first_name: document.getElementById('regFirst').value,
+                last_name: document.getElementById('regLast').value,
+                email: document.getElementById('regEmail').value,
+                password: document.getElementById('regPass').value,
+                license_number: document.getElementById('regLicense').value,
+                has_car: hasCar,
+                car_make_model: document.getElementById('regCarModel').value || null,
+                car_plate: document.getElementById('regCarPlate').value || null,
+                insurance_policy: null,
+                insurance_provider: null
+            };
+
+            btn.disabled = true;
+            btn.innerText = "CREATING ACCOUNT...";
+
+            try {
+                const res = await fetch(`${API_URL}/register`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!res.ok) {
+                    const error = await res.json().catch(() => ({ detail: "Registration server error" }));
+                    throw new Error(error.detail || "Registration failed");
+                }
+
+                showStatus("Registration successful! Redirecting to login...", false);
+                setTimeout(() => openModal('login'), 1500);
+            } catch (err) {
+                showStatus(err.message);
+                reportError("Registration API Failed", err.message);
+                btn.disabled = false;
+                btn.innerText = "FINISH REGISTRATION";
+            }
+        }
+
+        async function loadMentors(hasCarOnly = false) {
+            const grid = document.getElementById('mentorGrid');
+            if (!grid) return;
+
+            const btnAll = document.getElementById('filterAll');
+            const btnCar = document.getElementById('filterCar');
+
+            if (hasCarOnly) {
+                if (btnCar) btnCar.className = "px-4 py-2 text-xs font-bold rounded-md bg-white text-black shadow-lg transition-all";
+                if (btnAll) btnAll.className = "px-4 py-2 text-xs font-bold rounded-md text-gray-400 hover:text-white transition-all";
+            } else {
+                if (btnAll) btnAll.className = "px-4 py-2 text-xs font-bold rounded-md bg-white text-black shadow-lg transition-all";
+                if (btnCar) btnCar.className = "px-4 py-2 text-xs font-bold rounded-md text-gray-400 hover:text-white transition-all";
+            }
+
+            grid.innerHTML = `<div class="col-span-full py-12 text-center text-gray-500 animate-pulse">Scanning for Mentors...</div>`;
+
+            try {
+                const res = await fetch(`${API_URL}/mentors?has_car_only=${hasCarOnly}`);
+                if (!res.ok) throw new Error("Could not reach mentor database.");
+                
+                const mentors = await res.json();
+
+                if (mentors.length === 0) {
+                    grid.innerHTML = `<div class="col-span-full py-12 text-center text-gray-500">No mentors found for this filter.</div>`;
+                    return;
+                }
+
+                grid.innerHTML = mentors.map(m => `
+                    <div class="glass-panel p-6 hover:border-white/30 transition-all anim-entry">
+                        <div class="flex justify-between items-start mb-4">
+                            <div class="w-12 h-12 rounded-full bg-blue-500/10 border border-blue-500/30 flex items-center justify-center font-black text-blue-400">
+                                ${(m.first_name || 'U')[0]}${(m.last_name || '')[0]}
+                            </div>
+                            <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded border border-green-500/30">VERIFIED</span>
+                        </div>
+                        <h3 class="text-xl font-bold">${m.first_name} ${m.last_name}</h3>
+                        <p class="text-xs text-gray-400 mb-4">Certified Supervisor</p>
+                        
+                        <div class="space-y-2 mb-6">
+                            <div class="flex items-center gap-2 text-xs text-gray-300">
+                                <span class="w-4 h-4 bg-white/10 rounded flex items-center justify-center text-[8px]">✓</span>
+                                <span>Background Check Passed</span>
+                            </div>
+                            ${m.has_car ? 
+                                `<div class="flex items-center gap-2 text-xs text-white font-bold bg-white/10 p-2 rounded">
+                                    <span>🚗 Vehicle: ${m.car_make_model || 'Standard Sedan'}</span>
+                                </div>` : 
+                                `<div class="flex items-center gap-2 text-xs text-gray-500 bg-black/20 p-2 rounded italic">
+                                    <span>Requires Learner's Vehicle</span>
+                                </div>`
+                            }
+                        </div>
+                        <button class="btn-silver w-full py-3 rounded-xl text-xs hover:scale-[1.02] active:scale-[0.98] transition-transform">Request Session</button>
                     </div>
-                    <span class="bg-green-500/20 text-green-400 text-[10px] font-bold px-2 py-1 rounded border border-green-500/30">VERIFIED</span>
-                </div>
-                <h3 class="text-xl font-bold">${mentor.first_name} ${mentor.last_name}</h3>
-                <p class="text-xs text-gray-400 mb-4">Certified drivingLynX Mentor</p>
-                <div class="space-y-2 mb-6">
-                    <div class="flex items-center gap-2 text-xs text-gray-300">
-                        <span>✓ License: ${mentor.license_number.replace(/./g, '*')}</span>
-                    </div>
-                    ${mentor.has_car ? 
-                        `<div class="flex items-center gap-2 text-xs text-white font-bold bg-white/10 p-2 rounded">
-                            <span>🚗 Vehicle: ${mentor.car_make_model}</span>
-                        </div>` : 
-                        `<div class="flex items-center gap-2 text-xs text-gray-500 bg-black/20 p-2 rounded">
-                            <span>🚫 Uses Learner's Car</span>
-                        </div>`
-                    }
-                </div>
-                <button class="btn-silver w-full py-3 rounded-xl text-xs">Book Session</button>
-            </div>
-        `).join('');
-    } catch (err) {
-        grid.innerHTML = '<p class="text-red-400">Error loading mentors.</p>';
-    }
-}
+                `).join('');
+            } catch (err) {
+                grid.innerHTML = `<div class="col-span-full py-12 text-center text-red-500/50">Error fetching mentors. Check connection.</div>`;
+                reportError("Mentor Fetch Error", err.message);
+            }
+        }
 
-// --- UI Logic ---
-function showDashboard(user) {
-    document.getElementById('landingView').classList.add('hidden');
-    document.getElementById('dashboardView').classList.remove('hidden');
-    document.getElementById('navAuthButtons').classList.add('hidden');
-    document.getElementById('navUserArea').classList.remove('hidden');
-    document.getElementById('userNameDisplay').innerText = user.first_name;
-    
-    // Auto-load mentors if the logged-in user is a learner
-    if (user.role === 'learner') loadMentors();
-}
+        // --- 7. HELPERS ---
+        function showStatus(text, isError = true) {
+            const status = document.getElementById('statusMsg');
+            if (status) {
+                status.innerText = text;
+                status.className = `mb-4 text-xs font-bold ${isError ? 'text-red-400' : 'text-green-400'}`;
+                status.classList.remove('hidden');
+            }
+        }
 
-function logout() {
-    localStorage.removeItem('lynx_user');
-    window.location.reload();
-}
+        function showDashboard(user) {
+            const lv = document.getElementById('landingView');
+            const dv = document.getElementById('dashboardView');
+            const nab = document.getElementById('navAuthButtons');
+            const nua = document.getElementById('navUserArea');
+            const und = document.getElementById('userNameDisplay');
+            const rb = document.getElementById('roleBadge');
 
-// --- Previous Navigation Functions (Modal/Step control) remain the same ---
-// Note: Ensure you update your "ENTER DASHBOARD" button to call loginAction()
+            if (lv) lv.classList.add('hidden');
+            if (dv) dv.classList.remove('hidden');
+            if (nab) nab.classList.add('hidden');
+            if (nua) nua.classList.remove('hidden');
+            
+            if (und) und.innerText = user.first_name || 'Driver';
+            if (rb) rb.innerText = user.role || 'User';
+            
+            loadMentors();
+        }
+
+        function logout() {
+            storage.remove('lynx_user');
+            window.location.reload();
+        }
+
+        function goHome() {
+            const user = storage.get('lynx_user');
+            if (user) {
+                showDashboard(user);
+            } else {
+                window.location.reload();
+            }
+        }
     </script>
 </body>
 </html>
