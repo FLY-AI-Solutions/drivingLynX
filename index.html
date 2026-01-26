@@ -84,17 +84,23 @@
         <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
             <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4">Find Mentor</button>
             <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Requests</button>
+            <button onclick="switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Set Availability</button>
             <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
         </div>
+        <!-- <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
+            <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4">Find Mentor</button>
+            <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Requests</button>
+            <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
+        </div> -->
         <!-- 0-. Edited afaiyaz -->
-        <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
+        <!-- <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
             <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4">Find Mentor</button>
             <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Requests</button>
             
             <button onclick="showAvailabilityEditor()" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Set Availability</button>
             
             <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
-        </div>
+        </div> -->
         <div id="viewManageAvailability" class="hidden">
             <h2 class="text-2xl font-bold mb-6">Set Your Weekly Availability</h2>
             <div class="glass-panel p-8">
@@ -363,17 +369,18 @@
 
         // --- Navigation ---
         function switchTab(tab) {
-            // Hide ALL possible views
-            ['viewFind','viewProfile','viewPayment','viewRequests','viewSession', 'viewManageAvailability'].forEach(id => 
-                document.getElementById(id).classList.add('hidden')
-            );
+            // 1. Hide every possible view
+            const views = ['viewFind','viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
+            views.forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            // Reset all tab styles to gray
-            ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'].forEach(id => {
+            // 2. Reset all tabs to inactive state
+            const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'];
+            tabs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
             });
         
+            // 3. Show the requested view
             if(tab === 'find') {
                 document.getElementById('viewFind').classList.remove('hidden');
                 document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
@@ -387,9 +394,38 @@
             } else if(tab === 'avail') {
                 document.getElementById('viewManageAvailability').classList.remove('hidden');
                 document.getElementById('tabAvail').className = 'text-white font-bold border-b-2 border-white pb-4';
-                showAvailabilityEditor(); // This handles loading the data
+                showAvailabilityEditor();
             }
         }
+        
+        // function switchTab(tab) {
+        //     // Hide ALL possible views
+        //     ['viewFind','viewProfile','viewPayment','viewRequests','viewSession', 'viewManageAvailability'].forEach(id => 
+        //         document.getElementById(id).classList.add('hidden')
+        //     );
+            
+        //     // Reset all tab styles to gray
+        //     ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'].forEach(id => {
+        //         const el = document.getElementById(id);
+        //         if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
+        //     });
+        
+        //     if(tab === 'find') {
+        //         document.getElementById('viewFind').classList.remove('hidden');
+        //         document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
+        //     } else if(tab === 'requests') {
+        //         document.getElementById('viewRequests').classList.remove('hidden');
+        //         document.getElementById('tabRequests').className = 'text-white font-bold border-b-2 border-white pb-4';
+        //         loadRequests();
+        //     } else if(tab === 'session') {
+        //         document.getElementById('viewSession').classList.remove('hidden');
+        //         document.getElementById('tabSession').className = 'text-white font-bold border-b-2 border-white pb-4';
+        //     } else if(tab === 'avail') {
+        //         document.getElementById('viewManageAvailability').classList.remove('hidden');
+        //         document.getElementById('tabAvail').className = 'text-white font-bold border-b-2 border-white pb-4';
+        //         showAvailabilityEditor(); // This handles loading the data
+        //     }
+        // }
         // function switchTab(tab) {
         //     ['viewFind','viewProfile','viewPayment','viewRequests','viewSession'].forEach(id => 
         //         document.getElementById(id).classList.add('hidden')
@@ -711,19 +747,48 @@
             document.getElementById('roleBadge').innerText = user.role;
             document.getElementById('myQrCode').innerText = `ID: ${user.id}`;
             
-            // Configure Role Specifics
+            // Role-Based UI Logic
             if(user.role === 'mentor') {
                 document.getElementById('tabRequests').classList.remove('hidden');
-                
-                // ADD THIS LINE TO SHOW THE AVAILABILITY TAB
                 document.getElementById('tabAvail').classList.remove('hidden'); 
-                
                 document.getElementById('btnStartSession').classList.remove('hidden');
+                document.getElementById('btnEndSession').classList.add('hidden');
+                // Mentors don't need to "find" mentors
+                document.getElementById('tabFind').classList.add('hidden');
+                switchTab('requests'); 
             } else {
+                document.getElementById('tabRequests').classList.add('hidden');
+                document.getElementById('tabAvail').classList.add('hidden');
+                document.getElementById('btnStartSession').classList.add('hidden');
                 document.getElementById('btnEndSession').classList.remove('hidden');
+                document.getElementById('tabFind').classList.remove('hidden');
+                loadMentors();
             }
-            loadMentors();
         }
+
+        // function showDashboard(user) {
+        //     currentUser = user;
+        //     document.getElementById('landingView').classList.add('hidden');
+        //     document.getElementById('dashboardView').classList.remove('hidden');
+        //     document.getElementById('navAuthButtons').classList.add('hidden');
+        //     document.getElementById('navUserArea').classList.remove('hidden');
+        //     document.getElementById('userNameDisplay').innerText = user.first_name;
+        //     document.getElementById('roleBadge').innerText = user.role;
+        //     document.getElementById('myQrCode').innerText = `ID: ${user.id}`;
+            
+        //     // Configure Role Specifics
+        //     if(user.role === 'mentor') {
+        //         document.getElementById('tabRequests').classList.remove('hidden');
+                
+        //         // ADD THIS LINE TO SHOW THE AVAILABILITY TAB
+        //         document.getElementById('tabAvail').classList.remove('hidden'); 
+                
+        //         document.getElementById('btnStartSession').classList.remove('hidden');
+        //     } else {
+        //         document.getElementById('btnEndSession').classList.remove('hidden');
+        //     }
+        //     loadMentors();
+        // }
 
         // function showDashboard(user) {
         //     currentUser = user;
