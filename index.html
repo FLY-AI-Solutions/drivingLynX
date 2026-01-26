@@ -84,6 +84,7 @@
         <div class="flex gap-4 mb-8 border-b border-white/10 pb-4">
             <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4">Find Mentor</button>
             <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Requests</button>
+            <button onclick="switchTab('upcoming')" id="tabUpcoming" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Upcoming</button>
             <button onclick="switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4">Set Availability</button>
             <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4">Active Session</button>
         </div>
@@ -95,6 +96,16 @@
                     </div>
                 <button onclick="saveAvailability()" class="btn-silver w-full mt-8 py-4 rounded-xl">SAVE ALL SLOTS</button>
             </div>
+        </div>
+        
+        <div id="viewUpcoming" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Upcoming Appointments</h2>
+                <button onclick="downloadICS()" class="btn-silver py-2 px-4 text-xs flex items-center gap-2">
+                    📅 Download Calendar (.ics)
+                </button>
+            </div>
+            <div id="upcomingGrid" class="grid gap-4 md:grid-cols-2"></div>
         </div>
 
         <!-- 1. Find View -->
@@ -355,13 +366,15 @@
         };
 
         // --- Navigation ---
+
+        // --- Navigation ---
         function switchTab(tab) {
-            // 1. Hide ALL views first
-            const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
+            // 1. Hide ALL views first (Added 'viewUpcoming')
+            const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
             views.forEach(id => document.getElementById(id).classList.add('hidden'));
             
-            // 2. Reset ALL tab styles to gray
-            const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'];
+            // 2. Reset ALL tab styles to gray (Added 'tabUpcoming')
+            const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail', 'tabUpcoming'];
             tabs.forEach(id => {
                 const el = document.getElementById(id);
                 if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
@@ -388,21 +401,32 @@
                 document.getElementById('viewManageAvailability').classList.remove('hidden');
                 document.getElementById('tabAvail').className = 'text-white font-bold border-b-2 border-white pb-4';
                 showAvailabilityEditor();
+            } else if(tab === 'upcoming') {
+                // NEW: Handle Upcoming Tab
+                document.getElementById('viewUpcoming').classList.remove('hidden');
+                document.getElementById('tabUpcoming').className = 'text-white font-bold border-b-2 border-white pb-4';
+                loadUpcoming();
             }
         }
         // function switchTab(tab) {
-        //     // 1. Hide every possible view
-        //     const views = ['viewFind','viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
+        //     // 1. Hide ALL views first
+        //     const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability'];
         //     views.forEach(id => document.getElementById(id).classList.add('hidden'));
             
-        //     // 2. Reset all tabs to inactive state
+        //     // 2. Reset ALL tab styles to gray
         //     const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail'];
         //     tabs.forEach(id => {
         //         const el = document.getElementById(id);
         //         if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4';
         //     });
-        
-        //     // 3. Show the requested view
+
+        //     // 3. ROLE PROTECTION: Force mentor tabs to stay hidden if user is a learner
+        //     if (currentUser && currentUser.role !== 'mentor') {
+        //         document.getElementById('tabRequests').classList.add('hidden');
+        //         document.getElementById('tabAvail').classList.add('hidden');
+        //     }
+
+        //     // 4. Show the selected view and highlight the tab
         //     if(tab === 'find') {
         //         document.getElementById('viewFind').classList.remove('hidden');
         //         document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
@@ -419,6 +443,7 @@
         //         showAvailabilityEditor();
         //     }
         // }
+        
         
         
 
@@ -720,18 +745,26 @@
             // Role-Based UI Logic
             if(user.role === 'mentor') {
                 document.getElementById('tabRequests').classList.remove('hidden');
-                document.getElementById('tabAvail').classList.remove('hidden'); 
+                document.getElementById('tabAvail').classList.remove('hidden');
+                document.getElementById('tabUpcoming').classList.remove('hidden'); // <--- NEW: Show Upcoming for Mentor
+                
                 document.getElementById('btnStartSession').classList.remove('hidden');
                 document.getElementById('btnEndSession').classList.add('hidden');
+                
                 // Mentors don't need to "find" mentors
                 document.getElementById('tabFind').classList.add('hidden');
+                
+                // Default view for mentors
                 switchTab('requests'); 
             } else {
                 document.getElementById('tabRequests').classList.add('hidden');
                 document.getElementById('tabAvail').classList.add('hidden');
+                document.getElementById('tabUpcoming').classList.remove('hidden'); // <--- NEW: Show Upcoming for Student too
+                
                 document.getElementById('btnStartSession').classList.add('hidden');
                 document.getElementById('btnEndSession').classList.remove('hidden');
                 document.getElementById('tabFind').classList.remove('hidden');
+                
                 loadMentors();
             }
         }
@@ -746,39 +779,26 @@
         //     document.getElementById('roleBadge').innerText = user.role;
         //     document.getElementById('myQrCode').innerText = `ID: ${user.id}`;
             
-        //     // Configure Role Specifics
+        //     // Role-Based UI Logic
         //     if(user.role === 'mentor') {
         //         document.getElementById('tabRequests').classList.remove('hidden');
-                
-        //         // ADD THIS LINE TO SHOW THE AVAILABILITY TAB
         //         document.getElementById('tabAvail').classList.remove('hidden'); 
-                
         //         document.getElementById('btnStartSession').classList.remove('hidden');
+        //         document.getElementById('btnEndSession').classList.add('hidden');
+        //         // Mentors don't need to "find" mentors
+        //         document.getElementById('tabFind').classList.add('hidden');
+        //         switchTab('requests'); 
         //     } else {
+        //         document.getElementById('tabRequests').classList.add('hidden');
+        //         document.getElementById('tabAvail').classList.add('hidden');
+        //         document.getElementById('btnStartSession').classList.add('hidden');
         //         document.getElementById('btnEndSession').classList.remove('hidden');
+        //         document.getElementById('tabFind').classList.remove('hidden');
+        //         loadMentors();
         //     }
-        //     loadMentors();
         // }
 
-        // function showDashboard(user) {
-        //     currentUser = user;
-        //     document.getElementById('landingView').classList.add('hidden');
-        //     document.getElementById('dashboardView').classList.remove('hidden');
-        //     document.getElementById('navAuthButtons').classList.add('hidden');
-        //     document.getElementById('navUserArea').classList.remove('hidden');
-        //     document.getElementById('userNameDisplay').innerText = user.first_name;
-        //     document.getElementById('roleBadge').innerText = user.role;
-        //     document.getElementById('myQrCode').innerText = `ID: ${user.id}`;
-            
-        //     // Configure Role Specifics
-        //     if(user.role === 'mentor') {
-        //         document.getElementById('tabRequests').classList.remove('hidden');
-        //         document.getElementById('btnStartSession').classList.remove('hidden');
-        //     } else {
-        //         document.getElementById('btnEndSession').classList.remove('hidden');
-        //     }
-        //     loadMentors();
-        // }
+        
 
         async function loadMentors() {
             const zip = document.getElementById('filterZip').value;
@@ -867,6 +887,51 @@
                     storage.set('lynx_user', currentUser);
                 }
             } catch(e) { alert("Save failed"); }
+        }
+
+        // B. Add the Loader and ICS Generator
+        let upcomingCache = [];
+        
+        async function loadUpcoming() {
+            const grid = document.getElementById('upcomingGrid');
+            grid.innerHTML = 'Loading...';
+            try {
+                const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${currentUser.id}&role=${currentUser.role}`);
+                const data = await res.json();
+                upcomingCache = data;
+                
+                if(data.length === 0) { grid.innerHTML = "No upcoming sessions."; return; }
+        
+                grid.innerHTML = data.map(s => {
+                    const date = new Date(s.scheduled_datetime);
+                    return `
+                    <div class="glass-panel p-6 border-l-4 border-blue-500">
+                        <div class="font-bold text-blue-400 uppercase text-xs">${date.toLocaleDateString()}</div>
+                        <div class="text-2xl font-black text-white">${date.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                        <div class="text-gray-400 text-sm">with ${s.partner_name}</div>
+                    </div>`;
+                }).join('');
+            } catch(e) { grid.innerHTML = "Error loading schedule."; }
+        }
+        
+        function downloadICS() {
+            if(!upcomingCache.length) return alert("No appointments.");
+            let content = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//drivingLynX//EN\n";
+            
+            upcomingCache.forEach(s => {
+                const start = new Date(s.scheduled_datetime);
+                const end = new Date(start.getTime() + (s.duration_hours * 3600000));
+                const fmt = d => d.toISOString().replace(/[-:]/g, '').split('.')[0] + 'Z';
+                
+                content += `BEGIN:VEVENT\nSUMMARY:Driving Session with ${s.partner_name}\nDTSTART:${fmt(start)}\nDTEND:${fmt(end)}\nEND:VEVENT\n`;
+            });
+            content += "END:VCALENDAR";
+            
+            const url = URL.createObjectURL(new Blob([content], {type: 'text/calendar'}));
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'schedule.ics';
+            a.click();
         }
 
         function closeModal() { document.getElementById('authModal').classList.replace('flex','hidden'); }
