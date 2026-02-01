@@ -1,0 +1,998 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>drivingLynX | Secure Connections</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    <style>
+        :root { --bg-dark: #050505; --silver: #e5e5e5; --accent-blue: #3b82f6; }
+        body { background-color: var(--bg-dark); color: var(--silver); font-family: 'Inter', sans-serif; }
+        .metallic-text { background: linear-gradient(135deg, #ffffff 0%, #b3b3b3 50%, #666666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; }
+        .glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; }
+        .lynx-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 1rem; border-radius: 12px; width: 100%; outline: none; transition: 0.2s; }
+        .lynx-input:focus { border-color: white; background: rgba(255,255,255,0.1); }
+        .btn-silver { background: linear-gradient(180deg, #ffffff, #9ca3af); color: black; font-weight: 800; text-transform: uppercase; padding: 12px; border-radius: 12px; transition: 0.2s; }
+        .btn-silver:active { transform: scale(0.98); }
+        .hidden-section { display: none; }
+        
+        /* QR Code Placeholder */
+        .qr-placeholder { background-image: radial-gradient(black 30%, transparent 31%), radial-gradient(black 30%, transparent 31%); background-size: 10px 10px; background-position: 0 0, 5px 5px; background-color: white; }
+
+        /* Ratings Bar */
+        .rating-bar-bg { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+        .rating-bar-fill { height: 100%; width: 0%; transition: width 1s ease; }
+        .temper-gradient { background: linear-gradient(90deg, #ef4444, #eab308, #22c55e); } /* Red (Angry) -> Green (Nice) */
+        .skill-gradient { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+        
+        /* Calendar Grid */
+        .cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+        .cal-slot { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; font-size: 10px; text-align: center; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+        .cal-slot:hover { background: rgba(255,255,255,0.15); }
+        .cal-slot.selected { background: white; color: black; font-weight: bold; transform: scale(1.05); }
+        .cal-slot.unavailable { opacity: 0.2; cursor: not-allowed; pointer-events: none; background: transparent; border: 1px solid rgba(255,255,255,0.05); }
+
+        /* Stars & QR */
+        .star-rating.active { color: #fbbf24; }
+        #qrCanvas img { display: block; margin: 0 auto; }
+    </style>
+</head>
+<body>
+
+    <div id="splash" class="fixed inset-0 bg-[#050505] z-[200] flex flex-col items-center justify-center transition-transform duration-1000 ease-in-out">
+        <h1 class="text-6xl metallic-text tracking-tighter">drivingLynX</h1>
+    </div>
+
+    <nav class="h-20 border-b border-white/5 flex justify-between items-center px-6 sticky top-0 bg-black/80 backdrop-blur-md z-40">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="goHome()">
+            <span class="metallic-text text-lg">drivingLynX</span>
+        </div>
+        <div id="navAuthButtons" class="flex gap-4">
+            <button onclick="openModal('login')" class="text-xs font-bold text-gray-400 hover:text-white">LOGIN</button>
+            <button onclick="openModal('register', 'learner')" class="btn-silver px-6 py-2 rounded-full text-xs">JOIN NOW</button>
+        </div>
+        <div id="navUserArea" class="hidden flex items-center gap-4">
+            <div class="text-right">
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="roleBadge">User</span>
+                <span id="userNameDisplay" class="text-white font-bold text-sm">Driver</span>
+            </div>
+            <button onclick="logout()" class="text-[10px] font-bold text-red-500 border border-red-500/20 px-3 py-1 rounded">LOGOUT</button>
+        </div>
+    </nav>
+
+    <main id="landingView" class="max-w-7xl mx-auto py-12 px-6">
+        <div class="grid md:grid-cols-2 gap-6 h-[70vh]">
+            <div onclick="openModal('register', 'learner')" class="glass-panel p-10 flex flex-col justify-end cursor-pointer group hover:bg-white/5 transition-all relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-black mb-2 text-white">I need a Mentor</h2>
+                    <p class="text-gray-400">Book sessions with rated mentors.</p>
+                </div>
+            </div>
+            <div onclick="openModal('register', 'mentor')" class="glass-panel p-10 flex flex-col justify-end cursor-pointer group hover:bg-white/5 transition-all relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-black mb-2 text-white">I want to Mentor</h2>
+                    <p class="text-gray-400">Manage your schedule and get paid.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="dashboardView" class="hidden max-w-7xl mx-auto py-12 px-6">
+        <div class="flex gap-4 mb-8 border-b border-white/10 pb-4 overflow-x-auto">
+            <button onclick="switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4 whitespace-nowrap">Find Mentor</button>
+            <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Requests</button>
+            <button onclick="switchTab('upcoming')" id="tabUpcoming" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Upcoming</button>
+            <button onclick="switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Set Availability</button>
+            <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Active Session</button>
+        </div>
+        
+        <div id="viewManageAvailability" class="hidden">
+            <h2 class="text-2xl font-bold mb-6">Set Your Weekly Availability</h2>
+            <div class="glass-panel p-8">
+                <div id="availabilityEditor" class="space-y-6"></div>
+                <button onclick="saveAvailability()" class="btn-silver w-full mt-8 py-4 rounded-xl">SAVE ALL SLOTS</button>
+            </div>
+        </div>
+        
+        <div id="viewUpcoming" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Upcoming Appointments</h2>
+                <button onclick="downloadICS()" class="btn-silver py-2 px-4 text-xs flex items-center gap-2">📅 Download .ics</button>
+            </div>
+            <div id="upcomingGrid" class="grid gap-4 md:grid-cols-2"></div>
+        </div>
+
+        <div id="viewFind">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4 glass-panel p-6">
+                <div>
+                    <h3 class="font-bold mb-2">Filters</h3>
+                    <div class="flex gap-4">
+                        <input type="text" id="filterZip" placeholder="Zip Code" class="lynx-input py-2 w-32 text-sm">
+                        <input type="number" id="filterRate" placeholder="Max Rate ($)" class="lynx-input py-2 w-32 text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="loadMentors()" class="btn-silver px-6 py-2 rounded-lg text-xs">Apply Filters</button>
+                </div>
+            </div>
+            <div id="mentorGrid" class="grid md:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="viewProfile" class="hidden">
+            <button onclick="switchTab('find')" class="mb-4 text-xs font-bold text-gray-500 hover:text-white">← BACK TO LIST</button>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="glass-panel p-8 h-fit">
+                    <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center text-3xl font-black mb-4 mx-auto border border-white/20" id="profileInitials"></div>
+                    <h2 class="text-3xl font-black text-center mb-1" id="profileName">Name</h2>
+                    <p class="text-center text-green-400 font-bold mb-6" id="profileRate">$0/hr</p>
+                    <div class="space-y-6 mb-8">
+                        <div>
+                            <div class="flex justify-between text-xs font-bold mb-1 uppercase tracking-widest text-gray-400"><span>Temper</span> <span id="valTemper" class="text-white">Nice</span></div>
+                            <div class="rating-bar-bg"><div id="barTemper" class="rating-bar-fill temper-gradient" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-bold mb-1 uppercase tracking-widest text-gray-400"><span>Skills</span> <span id="valSkills" class="text-white">5/5</span></div>
+                            <div class="rating-bar-bg"><div id="barSkills" class="rating-bar-fill skill-gradient" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-bold mb-1 uppercase tracking-widest text-gray-400"><span>Knowledge</span> <span id="valKnowledge" class="text-white">5/5</span></div>
+                            <div class="rating-bar-bg"><div id="barKnowledge" class="rating-bar-fill skill-gradient" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-xl">
+                        <p class="text-xs text-gray-400 mb-1 font-bold uppercase">Vehicle</p>
+                        <p id="profileCar" class="text-sm font-bold">Uses Student Car</p>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-8 col-span-2">
+                    <h3 class="text-xl font-bold mb-4">Select Session Slots</h3>
+                    <p class="text-xs text-gray-400 mb-6">Times are shown in local mentor time. Click to select multiple slots.</p>
+                    <div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+                    </div>
+                    <div id="calendarGrid" class="cal-grid mb-8"></div>
+                    <div class="flex flex-col md:flex-row justify-between items-center border-t border-white/10 pt-6 gap-4">
+                        <div class="text-center md:text-left">
+                            <span class="text-xs text-gray-400 uppercase tracking-widest block">Selected</span>
+                            <span id="selectedCount" class="text-2xl font-bold text-white">0</span> <span class="text-sm text-gray-500">slots</span>
+                        </div>
+                        <button onclick="proceedToPayment()" class="btn-silver px-8 py-3 rounded-xl w-full md:w-auto">REVIEW & BOOK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dateModal" class="fixed inset-0 z-[150] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+            <div class="glass-panel w-full max-w-md p-6 relative">
+                <button onclick="closeDateModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+                <h3 class="text-xl font-bold mb-1 text-white">Select Dates</h3>
+                <p id="dateModalTitle" class="text-sm text-blue-400 font-bold uppercase tracking-widest mb-6">Monday @ 10:00</p>
+                <div id="dateOptionsGrid" class="space-y-3 mb-6"></div>
+                <button onclick="confirmDateSelection()" class="btn-silver w-full py-3 rounded-xl shadow-[0_0_15px_rgba(255,255,255,0.3)]">CONFIRM SELECTION</button>
+            </div>
+        </div>
+
+        <div id="viewPayment" class="hidden max-w-2xl mx-auto">
+            <button onclick="document.getElementById('viewPayment').classList.add('hidden'); document.getElementById('viewProfile').classList.remove('hidden');" class="mb-4 text-xs font-bold text-gray-500 hover:text-white">← EDIT BOOKING</button>
+            <div class="glass-panel p-8">
+                <h2 class="text-3xl font-black mb-6">Booking Summary</h2>
+                <div class="space-y-3 mb-8 text-sm text-gray-300 bg-white/5 p-6 rounded-xl">
+                    <div class="flex justify-between"><span>Sessions Count</span> <span id="payCount" class="text-white font-bold">0</span></div>
+                    <div class="flex justify-between"><span>Rate per Hour</span> <span id="payRate" class="text-white font-bold">$0.00</span></div>
+                    <div class="flex justify-between"><span>Subtotal</span> <span id="paySubtotal" class="text-white font-bold">$0.00</span></div>
+                    <div class="flex justify-between text-blue-300"><span>Platform Fee</span> <span id="payFees">$5.00</span></div>
+                    <div class="border-t border-white/10 my-2"></div>
+                    <div class="flex justify-between text-xl font-bold text-white"><span>Total Due</span> <span id="payTotal">$0.00</span></div>
+                </div>
+
+                <div class="bg-blue-900/20 p-6 rounded-xl mb-6 border border-blue-500/30">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">💳</div>
+                        <h4 class="font-bold text-blue-100">Secure Payment (Demo)</h4>
+                    </div>
+                    <input type="text" placeholder="Card Number (4242 4242 4242 4242)" class="lynx-input mb-3 bg-blue-900/40 border-blue-500/30">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" placeholder="MM/YY" class="lynx-input bg-blue-900/40 border-blue-500/30">
+                        <input type="text" placeholder="CVC" class="lynx-input bg-blue-900/40 border-blue-500/30">
+                    </div>
+                </div>
+                <button onclick="submitBooking()" class="btn-silver w-full py-4 rounded-xl text-sm">AUTHORIZE PAYMENT & SEND REQUEST</button>
+            </div>
+        </div>
+
+        <div id="viewRequests" class="hidden">
+            <h2 class="text-2xl font-bold mb-6">Incoming Booking Requests</h2>
+            <div id="requestsGrid" class="space-y-4"></div>
+        </div>
+        
+        <div id="viewSession" class="hidden">
+            <div class="max-w-md mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="exitSession()" class="text-xs font-bold text-gray-500">← EXIT SESSION VIEW</button>
+                    <span id="sessionStateBadge" class="px-2 py-1 rounded bg-white/10 text-[10px] font-bold uppercase text-white">Loading...</span>
+                </div>
+
+                <div class="glass-panel p-8 text-center mb-6">
+                    <h2 class="text-2xl font-black mb-2" id="sessionHeader">Session Ready</h2>
+                    <p class="text-sm text-gray-400 mb-6" id="sessionInstruction">Follow the steps below to connect.</p>
+                    
+                    <div id="qrContainer" class="hidden mb-6">
+                        <div id="qrCanvas" class="mx-auto bg-white p-4 rounded-lg inline-block"></div>
+                        <p class="text-[10px] text-gray-500 mt-2 uppercase tracking-widest">Secure Token Generated</p>
+                    </div>
+
+                    <div id="scanContainer" class="hidden mb-6">
+                        <div class="w-48 h-48 mx-auto border-2 border-dashed border-white/30 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/20 to-transparent animate-pulse"></div>
+                            <span class="text-xs text-gray-500">Camera View</span>
+                        </div>
+                        <input type="text" id="scanInput" placeholder="Paste Token Here" class="lynx-input text-center text-xs mb-2">
+                        <button onclick="processScan()" class="btn-silver w-full py-2 text-xs">SIMULATE SCAN</button>
+                    </div>
+
+                    <button id="btnGenerateQR" onclick="generateQR()" class="hidden btn-silver w-full py-3 mb-2">SHOW MY QR CODE</button>
+                    <button id="btnOpenScanner" onclick="openScannerUI()" class="hidden border border-white/20 w-full py-3 rounded-xl font-bold text-sm hover:bg-white/10">OPEN SCANNER</button>
+                </div>
+
+                <div id="mentorEvalForm" class="hidden glass-panel p-6 mb-6">
+                    <h3 class="font-bold text-white mb-4">DMV Evaluation Checklist</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Smooth Steering</span>
+                            <input type="checkbox" id="evalSteering" class="w-5 h-5 accent-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Mirrors / Blind Spots</span>
+                            <input type="checkbox" id="evalMirrors" class="w-5 h-5 accent-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Braking Control</span>
+                            <input type="checkbox" id="evalBraking" class="w-5 h-5 accent-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Signals Used</span>
+                            <input type="checkbox" id="evalSignals" class="w-5 h-5 accent-blue-500">
+                        </label>
+                    </div>
+                    <button onclick="saveEvaluation()" class="mt-4 w-full py-2 bg-blue-600/20 border border-blue-500/50 text-blue-400 font-bold rounded-lg text-xs">SAVE POINTS</button>
+                </div>
+
+                <div id="ratingForm" class="hidden glass-panel p-6 text-center">
+                    <h3 class="font-bold text-white mb-2">Rate your Experience</h3>
+                    <p class="text-xs text-gray-400 mb-4">Help us maintain quality.</p>
+                    <div class="flex justify-center gap-2 mb-6" id="starContainer">
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="setStar(1)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="setStar(2)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="setStar(3)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="setStar(4)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="setStar(5)">★</span>
+                    </div>
+                    <textarea id="ratingComment" class="lynx-input mb-4 h-24 text-sm" placeholder="Optional comments..."></textarea>
+                    <button onclick="submitRating()" class="btn-silver w-full py-3">SUBMIT RATING</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="authModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+        <div class="glass-panel w-full max-w-lg p-8 relative overflow-y-auto max-h-[90vh]">
+            <button onclick="closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+
+            <div id="wizardProgress" class="mb-8 hidden">
+                <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
+                    <span id="stepLabel">Identity</span>
+                    <span id="stepCount">1/4</span>
+                </div>
+                <div class="h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div id="progressBar" class="h-full bg-white transition-all duration-500" style="width: 25%"></div>
+                </div>
+            </div>
+
+            <form id="authForm" onsubmit="return false;">
+                <div id="loginSection" class="hidden-section">
+                    <h2 class="text-3xl font-black metallic-text mb-6">Welcome Back</h2>
+                    <input type="email" id="loginEmail" placeholder="Email" class="lynx-input mb-4" required>
+                    <input type="password" id="loginPass" placeholder="Password" class="lynx-input mb-6" required>
+                    <button type="button" onclick="loginAction()" id="loginBtn" class="btn-silver w-full py-4 rounded-xl">ENTER DASHBOARD</button>
+                </div>
+
+                <div id="step1" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Account Basics</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <input type="text" id="regFirst" placeholder="First Name" class="lynx-input">
+                        <input type="text" id="regLast" placeholder="Last Name" class="lynx-input">
+                    </div>
+                    <input type="email" id="regEmail" placeholder="Email Address" class="lynx-input mb-4">
+                    <input type="password" id="regPass" placeholder="Create Password" class="lynx-input">
+                </div>
+                
+                <div id="step2" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Details & Location</h3>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">YOUR ADDRESS</label>
+                    <input type="text" id="regAddress" placeholder="Street Address" class="lynx-input mb-2">
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <input type="text" id="regCity" placeholder="City" class="lynx-input col-span-2">
+                        <input type="text" id="regZip" placeholder="Zip" class="lynx-input">
+                    </div>
+                    <div id="mentorFields" class="hidden mb-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">HOURLY RATE</label>
+                        <input type="number" id="regRate" placeholder="Price per hour ($)" class="lynx-input">
+                    </div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">LICENSE #</label>
+                    <input type="text" id="regLicense" placeholder="Permit / License Number" class="lynx-input">
+                </div>
+
+                <div id="step3" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-2">Vehicle Availability</h3>
+                    <div class="flex gap-4 mb-6">
+                        <button type="button" onclick="setHasCar(true)" id="carBtnYes" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">YES</button>
+                        <button type="button" onclick="setHasCar(false)" id="carBtnNo" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">NO</button>
+                    </div>
+                    <div id="carDetailsForm" class="hidden space-y-4 border-t border-white/10 pt-4">
+                        <input type="text" id="regCarModel" placeholder="Make & Model" class="lynx-input">
+                        <input type="text" id="regCarPlate" placeholder="License Plate" class="lynx-input">
+                    </div>
+                </div>
+
+                <div id="step4" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Finalize</h3>
+                    <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl mb-6 text-sm text-blue-200">
+                        <p>No secondary insurance provided. You agree to use the Learner's vehicle and accept liability.</p>
+                    </div>
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="regConsent" class="mt-1">
+                        <span class="text-xs text-gray-400">I certify my license is valid.</span>
+                    </label>
+                </div>
+
+                <div id="wizardControls" class="flex gap-3 mt-8 hidden">
+                    <button type="button" id="backBtn" onclick="changeStep(-1)" class="px-6 py-4 rounded-xl bg-white/5 font-bold text-gray-500 text-sm hover:bg-white/10 transition-all">BACK</button>
+                    <button type="button" id="nextBtn" onclick="changeStep(1)" class="flex-1 btn-silver py-4 rounded-xl">CONTINUE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        const API_URL = "https://jerin-api.flyai.online/x003/api";
+        const storage = {
+            set: (k,v) => { try{localStorage.setItem(k,JSON.stringify(v))}catch(e){} },
+            get: (k) => { try{return JSON.parse(localStorage.getItem(k))}catch(e){return null} },
+            remove: (k) => { try{localStorage.removeItem(k)}catch(e){} }
+        };
+
+        let currentUser = null;
+        let selectedMentor = null;
+        let selectedSlots = [];
+        let activeSession = null;
+        let sessionPoller = null;
+        let userRole = 'learner';
+        let currentStep = 1;
+        const totalSteps = 4;
+        let hasCar = false;
+        let currentRating = 0;
+
+        window.onload = () => {
+            setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 1000);
+            const user = storage.get('lynx_user');
+            if(user) showDashboard(user);
+        };
+
+        // --- Navigation ---
+        function switchTab(tab) {
+            // Hide all views
+            const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
+            views.forEach(id => document.getElementById(id).classList.add('hidden'));
+            
+            // Reset Tabs
+            const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail', 'tabUpcoming'];
+            tabs.forEach(id => {
+                const el = document.getElementById(id);
+                if(el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap';
+            });
+
+            // Stop Polling if leaving session view
+            if(tab !== 'session' && sessionPoller) { clearInterval(sessionPoller); sessionPoller = null; }
+
+            // ROLE PROTECTION
+            if (currentUser && currentUser.role !== 'mentor') {
+                document.getElementById('tabRequests').classList.add('hidden');
+                document.getElementById('tabAvail').classList.add('hidden');
+            }
+
+            // Show selected view
+            if(tab === 'find') {
+                document.getElementById('viewFind').classList.remove('hidden');
+                document.getElementById('tabFind').className = 'text-white font-bold border-b-2 border-white pb-4';
+            } else if(tab === 'requests') {
+                document.getElementById('viewRequests').classList.remove('hidden');
+                document.getElementById('tabRequests').className = 'text-white font-bold border-b-2 border-white pb-4';
+                loadRequests();
+            } else if(tab === 'session') {
+                document.getElementById('viewSession').classList.remove('hidden');
+                document.getElementById('tabSession').className = 'text-white font-bold border-b-2 border-white pb-4';
+            } else if(tab === 'avail') {
+                document.getElementById('viewManageAvailability').classList.remove('hidden');
+                document.getElementById('tabAvail').className = 'text-white font-bold border-b-2 border-white pb-4';
+                showAvailabilityEditor();
+            } else if(tab === 'upcoming') {
+                document.getElementById('viewUpcoming').classList.remove('hidden');
+                document.getElementById('tabUpcoming').className = 'text-white font-bold border-b-2 border-white pb-4';
+                loadUpcoming();
+            }
+        }
+
+        // --- Session Management (New Logic) ---
+        
+        async function loadUpcoming() {
+            const grid = document.getElementById('upcomingGrid');
+            grid.innerHTML = '<div class="text-center text-gray-500">Loading schedule...</div>';
+            try {
+                const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${currentUser.id}`);
+                const data = await res.json();
+                
+                if(data.length === 0) {
+                   grid.innerHTML = "<div class='text-gray-500 text-center'>No upcoming sessions found.</div>";
+                   return;
+                }
+
+                grid.innerHTML = data.map(s => {
+                    const d = new Date(s.scheduled_datetime);
+                    return `
+                    <div onclick="enterSessionMode(${s.id})" class="glass-panel p-6 border-l-4 border-blue-500 cursor-pointer hover:bg-white/5 transition">
+                        <div class="flex justify-between items-start">
+                            <div>
+                                <div class="font-bold text-blue-400 uppercase text-xs mb-1">${d.toLocaleDateString()}</div>
+                                <div class="text-2xl font-black text-white">${d.toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</div>
+                                <div class="text-gray-400 text-sm mt-1">with ${s.partner_name}</div>
+                            </div>
+                            <div class="bg-blue-500/20 text-blue-300 text-[10px] font-bold px-2 py-1 rounded border border-blue-500/30">
+                                ${s.status.toUpperCase()}
+                            </div>
+                        </div>
+                        <div class="mt-4 text-xs font-bold text-right text-gray-500">CLICK TO ENTER ></div>
+                    </div>`;
+                }).join('');
+            } catch(e) { grid.innerHTML = "Error loading schedule."; }
+        }
+
+        function enterSessionMode(sessionId) {
+            // In a real app, fetch the session details first. 
+            // For now, assume we switch context.
+            activeSession = { id: sessionId, status: 'scheduled' }; // Placeholder init
+            
+            // Trigger UI update & Start polling
+            syncSessionStatus();
+            sessionPoller = setInterval(syncSessionStatus, 5000); 
+            
+            document.getElementById('tabSession').classList.remove('hidden');
+            switchTab('session');
+        }
+
+        async function syncSessionStatus() {
+            if(!activeSession) return;
+            try {
+                const res = await fetch(`${API_URL}/sessions/${activeSession.id}`);
+                if(res.ok) {
+                    const fresh = await res.json();
+                    if(fresh.status !== activeSession.status) {
+                        activeSession = fresh;
+                    }
+                    updateSessionUI();
+                }
+            } catch(e) { console.log("Polling error", e); }
+        }
+
+        function updateSessionUI() {
+            const header = document.getElementById('sessionHeader');
+            const instr = document.getElementById('sessionInstruction');
+            const badge = document.getElementById('sessionStateBadge');
+            const btnQR = document.getElementById('btnGenerateQR');
+            const btnScan = document.getElementById('btnOpenScanner');
+            const evalForm = document.getElementById('mentorEvalForm');
+            const rateForm = document.getElementById('ratingForm');
+            
+            // Reset UI
+            document.getElementById('qrContainer').classList.add('hidden');
+            document.getElementById('scanContainer').classList.add('hidden');
+            btnQR.classList.add('hidden');
+            btnScan.classList.add('hidden');
+            evalForm.classList.add('hidden');
+            rateForm.classList.add('hidden');
+
+            badge.innerText = activeSession.status.toUpperCase();
+            
+            if(activeSession.status === 'scheduled') {
+                badge.className = "px-2 py-1 rounded bg-yellow-500/20 text-yellow-500 text-[10px] font-bold";
+                header.innerText = "Start Session";
+                
+                // Logic: Mentor SHOWS start code. Student SCANS start code.
+                if(currentUser.role === 'mentor') {
+                    instr.innerText = "Generate the Secure Start Code and show it to your student.";
+                    btnQR.classList.remove('hidden');
+                    btnQR.innerText = "GENERATE START CODE";
+                } else {
+                    instr.innerText = "Ask your mentor for the Start Code and scan it here.";
+                    btnScan.classList.remove('hidden');
+                }
+
+            } else if (activeSession.status === 'active') {
+                badge.className = "px-2 py-1 rounded bg-green-500/20 text-green-500 text-[10px] font-bold";
+                header.innerText = "Driving in Progress";
+                
+                // Logic: Student SHOWS end code. Mentor SCANS end code.
+                if(currentUser.role === 'mentor') {
+                    instr.innerText = "Track student progress below. Scan Student's QR to finish.";
+                    evalForm.classList.remove('hidden'); // Show DMV checklist
+                    btnScan.classList.remove('hidden');  // Mentor scans to end
+                } else {
+                    instr.innerText = "Focus on the road! Show this code to mentor when finished.";
+                    btnQR.classList.remove('hidden');
+                    btnQR.innerText = "GENERATE FINISH CODE";
+                }
+
+            } else if (activeSession.status === 'completed') {
+                badge.className = "px-2 py-1 rounded bg-blue-500/20 text-blue-500 text-[10px] font-bold";
+                header.innerText = "Session Completed";
+                instr.innerText = "Please rate your partner to finalize.";
+                rateForm.classList.remove('hidden');
+            }
+        }
+
+        // --- QR & Scan Logic ---
+        async function generateQR() {
+            const container = document.getElementById('qrContainer');
+            const canvas = document.getElementById('qrCanvas');
+            
+            try {
+                const res = await fetch(`${API_URL}/sessions/${activeSession.id}/qr_token?current_user_id=${currentUser.id}`);
+                if(!res.ok) throw new Error("Could not generate token");
+                const data = await res.json();
+                
+                canvas.innerHTML = "";
+                new QRCode(canvas, { text: data.qr_string, width: 180, height: 180 });
+                
+                container.classList.remove('hidden');
+                document.getElementById('btnGenerateQR').classList.add('hidden');
+            } catch(e) { alert("Error: " + e.message); }
+        }
+
+        function openScannerUI() {
+            document.getElementById('scanContainer').classList.remove('hidden');
+            document.getElementById('btnOpenScanner').classList.add('hidden');
+        }
+
+        async function processScan() {
+            const token = document.getElementById('scanInput').value;
+            if(!token) return alert("Enter token string");
+            
+            try {
+                const res = await fetch(`${API_URL}/sessions/scan?current_user_id=${currentUser.id}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ qr_string: token })
+                });
+                
+                if(!res.ok) throw new Error((await res.json()).detail);
+                
+                const data = await res.json();
+                alert(data.message);
+                
+                // Optimistic UI Update
+                if(data.message.includes("started")) activeSession.status = 'active';
+                if(data.message.includes("ended")) activeSession.status = 'completed';
+                updateSessionUI();
+                
+            } catch(e) { alert("Scan Failed: " + e.message); }
+        }
+
+        // --- Evaluation & Rating ---
+        async function saveEvaluation() {
+            const data = {
+                steering: document.getElementById('evalSteering').checked,
+                mirrors: document.getElementById('evalMirrors').checked,
+                braking: document.getElementById('evalBraking').checked,
+                signals: document.getElementById('evalSignals').checked
+            };
+            
+            try {
+                await fetch(`${API_URL}/sessions/${activeSession.id}/evaluate?current_user_id=${currentUser.id}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ evaluation_json: data })
+                });
+                alert("Evaluation Saved!");
+            } catch(e) { alert("Save failed"); }
+        }
+
+        function setStar(n) {
+            currentRating = n;
+            const stars = document.querySelectorAll('.star-rating');
+            stars.forEach((s, i) => { s.classList.toggle('active', i < n); });
+        }
+
+        async function submitRating() {
+            if(currentRating === 0) return alert("Select stars");
+            const comment = document.getElementById('ratingComment').value;
+            
+            try {
+                await fetch(`${API_URL}/sessions/${activeSession.id}/rate?current_user_id=${currentUser.id}`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ rating: currentRating, comment: comment })
+                });
+                alert("Rating Submitted! You can now exit.");
+                exitSession();
+            } catch(e) { alert("Submit failed"); }
+        }
+
+        function exitSession() {
+            clearInterval(sessionPoller);
+            activeSession = null;
+            switchTab('upcoming');
+        }
+
+        // --- View Logic: Mentor Profile ---
+        async function openMentorProfile(id) {
+            try {
+                const res = await fetch(`${API_URL}/mentors/${id}`);
+                if(!res.ok) throw new Error("Failed to load mentor");
+                const data = await res.json();
+                selectedMentor = data;
+                
+                document.getElementById('viewFind').classList.add('hidden');
+                document.getElementById('viewProfile').classList.remove('hidden');
+                document.getElementById('profileName').innerText = `${data.first_name} ${data.last_name}`;
+                document.getElementById('profileRate').innerText = `$${data.hourly_rate}/hr`;
+                document.getElementById('profileInitials').innerText = data.first_name[0];
+                document.getElementById('profileCar').innerText = data.car || "Uses Student Car";
+                
+                const setBar = (id, val, max=5) => {
+                    const pct = (val/max) * 100;
+                    setTimeout(() => document.getElementById(id).style.width = `${pct}%`, 100);
+                };
+                
+                setBar('barTemper', data.ratings.temper);
+                document.getElementById('valTemper').innerText = data.ratings.temper === 5 ? "Friendly" : (data.ratings.temper === 0 ? "Strict" : "Normal");
+                setBar('barSkills', data.ratings.skills);
+                document.getElementById('valSkills').innerText = `${data.ratings.skills}/5`;
+                setBar('barKnowledge', data.ratings.knowledge);
+                document.getElementById('valKnowledge').innerText = `${data.ratings.knowledge}/5`;
+
+                renderCalendar(data.availability);
+                selectedSlots = [];
+                updateSelectionUI();
+            } catch(e) { alert(e.message); }
+        }
+
+        let localAvailability = { mon:[], tue:[], wed:[], thu:[], fri:[], sat:[], sun:[] };
+        function showAvailabilityEditor() {
+            if (currentUser.weekly_availability) {
+                localAvailability = typeof currentUser.weekly_availability === 'string' 
+                    ? JSON.parse(currentUser.weekly_availability) 
+                    : currentUser.weekly_availability;
+            }
+            renderAvailabilityEditor();
+        }
+
+        function renderAvailabilityEditor() {
+            const container = document.getElementById('availabilityEditor');
+            const days = ['mon','tue','wed','thu','fri','sat','sun'];
+            const times = ["08:00", "09:00", "10:00", "11:00", "12:00", "13:00", "14:00", "15:00", "16:00", "17:00"];
+            
+            container.innerHTML = days.map(day => `
+                <div class="border-b border-white/5 pb-4">
+                    <h4 class="uppercase text-xs font-bold text-gray-500 mb-3">${day}</h4>
+                    <div class="flex flex-wrap gap-2">
+                        ${times.map(time => {
+                            const isSelected = localAvailability[day] && localAvailability[day].includes(time);
+                            return `<button onclick="toggleLocalSlot('${day}', '${time}')" class="px-3 py-1 rounded-md text-xs border ${isSelected ? 'bg-white text-black' : 'border-white/10 text-gray-400'}">${time}</button>`;
+                        }).join('')}
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        function toggleLocalSlot(day, time) {
+            if(!localAvailability[day]) localAvailability[day] = [];
+            const index = localAvailability[day].indexOf(time);
+            if (index > -1) localAvailability[day].splice(index, 1);
+            else localAvailability[day].push(time);
+            renderAvailabilityEditor();
+        }
+        
+        async function saveAvailability() {
+            try {
+                const res = await fetch(`${API_URL}/availability/update`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ user_id: currentUser.id, availability: localAvailability })
+                });
+                if(res.ok) {
+                    alert("Availability Saved!");
+                    currentUser.weekly_availability = localAvailability;
+                    storage.set('lynx_user', currentUser);
+                }
+            } catch(e) { alert("Save failed"); }
+        }
+
+        function renderCalendar(avail) {
+            const grid = document.getElementById('calendarGrid');
+            grid.innerHTML = '';
+            const days = ['mon','tue','wed','thu','fri','sat','sun'];
+            const timeSlots = ['09:00','10:00','11:00','14:00','15:00','16:00']; 
+            
+            timeSlots.forEach(time => {
+                days.forEach(day => {
+                    const div = document.createElement('div');
+                    const isAvail = avail[day] && avail[day].includes(time);
+                    // Check if selected
+                    const isActive = selectedSlots.some(s => {
+                        const d = new Date(s);
+                        const dIndex = d.getDay(); 
+                        const dName = ['sun','mon','tue','wed','thu','fri','sat'][dIndex];
+                        const dTime = d.toTimeString().substring(0,5);
+                        return dName === day && dTime === time;
+                    });
+
+                    div.className = `cal-slot ${isAvail ? '' : 'unavailable'} ${isActive ? 'selected' : ''}`;
+                    div.innerText = `${time}`;
+                    
+                    if(isAvail) div.onclick = () => openDateModal(day, time);
+                    grid.appendChild(div);
+                });
+            });
+        }
+        
+        let tempSelectedDates = [];
+        function openDateModal(day, time) {
+            tempSelectedDates = [...selectedSlots];
+            const dates = getNextFourDates(day, time);
+            const container = document.getElementById('dateOptionsGrid');
+            document.getElementById('dateModalTitle').innerText = `${day.toUpperCase()} @ ${time}`;
+            
+            container.innerHTML = dates.map(dateObj => {
+                const iso = dateObj.toISOString().slice(0, 19);
+                const isSelected = selectedSlots.some(s => s.startsWith(iso));
+                return `
+                <div onclick="toggleDateSelection('${iso}', this)" 
+                     class="cursor-pointer p-4 rounded-xl border transition-all flex justify-between items-center ${isSelected ? 'bg-white text-black border-white' : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'}">
+                    <span class="font-bold">${formatDateNice(dateObj)}</span>
+                    <div class="w-4 h-4 rounded-full border ${isSelected ? 'bg-black border-black' : 'border-gray-500'}"></div>
+                </div>`;
+            }).join('');
+            document.getElementById('dateModal').classList.replace('hidden', 'flex');
+        }
+
+        function toggleDateSelection(iso, el) {
+            const idx = tempSelectedDates.findIndex(s => s.startsWith(iso));
+            if (idx > -1) {
+                tempSelectedDates.splice(idx, 1);
+                el.className = 'cursor-pointer p-4 rounded-xl border transition-all flex justify-between items-center bg-white/5 border-white/10 text-gray-300 hover:bg-white/10';
+                el.querySelector('div').className = 'w-4 h-4 rounded-full border border-gray-500';
+            } else {
+                tempSelectedDates.push(iso);
+                el.className = 'cursor-pointer p-4 rounded-xl border transition-all flex justify-between items-center bg-white text-black border-white';
+                el.querySelector('div').className = 'w-4 h-4 rounded-full border bg-black border-black';
+            }
+        }
+        
+        function confirmDateSelection() {
+            selectedSlots = [...tempSelectedDates];
+            updateSelectionUI();
+            closeDateModal();
+            if(selectedMentor) renderCalendar(selectedMentor.availability);
+        }
+
+        function updateSelectionUI() { document.getElementById('selectedCount').innerText = selectedSlots.length; }
+        function proceedToPayment() {
+            if(selectedSlots.length === 0) return alert("Select at least one slot.");
+            document.getElementById('viewProfile').classList.add('hidden');
+            document.getElementById('viewPayment').classList.remove('hidden');
+            const count = selectedSlots.length;
+            const rate = selectedMentor.hourly_rate;
+            const subtotal = count * rate;
+            const fee = 5.00;
+            document.getElementById('payCount').innerText = count;
+            document.getElementById('payRate').innerText = `$${rate}`;
+            document.getElementById('paySubtotal').innerText = `$${subtotal.toFixed(2)}`;
+            document.getElementById('payTotal').innerText = `$${(subtotal+fee).toFixed(2)}`;
+        }
+
+        async function submitBooking() {
+            try {
+                const res = await fetch(`${API_URL}/bookings`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ mentor_id: selectedMentor.id, mentee_id: currentUser.id, datetime_slots: selectedSlots })
+                });
+                if(!res.ok) throw new Error("Booking failed");
+                const bookingData = await res.json();
+                await fetch(`${API_URL}/payment/confirm`, {
+                    method: 'POST',
+                    headers: {'Content-Type': 'application/json'},
+                    body: JSON.stringify({ session_ids: bookingData.booking_ids, payment_method_id: "pm_card_demo" })
+                });
+                alert("Payment Successful! Booking request sent to Mentor.");
+                switchTab('find');
+            } catch(e) { alert("Transaction failed: " + e.message); }
+        }
+
+        async function loadRequests() {
+            if(currentUser.role !== 'mentor') return;
+            const grid = document.getElementById('requestsGrid');
+            grid.innerHTML = '<div class="text-center text-gray-500 animate-pulse">Loading...</div>';
+            try {
+                const res = await fetch(`${API_URL}/requests/${currentUser.id}`);
+                const data = await res.json();
+                if(data.length === 0) { grid.innerHTML = "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; return; }
+                grid.innerHTML = data.map(r => `
+                    <div class="glass-panel p-4 flex justify-between items-center">
+                        <div><h4 class="font-bold text-white">${r.mentee_name}</h4><p class="text-xs text-gray-400">Scheduled: ${new Date(r.scheduled).toLocaleString()}</p><span class="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">PENDING</span></div>
+                        <div class="flex gap-2">
+                            <button onclick="handleRequest(${r.session_id}, 'accept')" class="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg text-xs font-bold border border-green-500/50 hover:bg-green-500/30">ACCEPT</button>
+                            <button onclick="handleRequest(${r.session_id}, 'reject')" class="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-xs font-bold border border-red-500/50 hover:bg-red-500/30">REJECT</button>
+                        </div>
+                    </div>`).join('');
+            } catch(e) { grid.innerHTML = "Error loading requests"; }
+        }
+
+        async function handleRequest(sid, action) {
+            try {
+                await fetch(`${API_URL}/bookings/action`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify({ session_id: sid, action: action, mentor_id: currentUser.id }) });
+                loadRequests();
+            } catch(e) { alert("Action failed"); }
+        }
+
+        async function loadMentors() {
+            const zip = document.getElementById('filterZip').value;
+            const rate = document.getElementById('filterRate').value;
+            let url = `${API_URL}/mentors?`;
+            if(zip) url += `zip_code=${zip}&`;
+            if(rate) url += `max_rate=${rate}&`;
+            try {
+                const res = await fetch(url);
+                const data = await res.json();
+                const grid = document.getElementById('mentorGrid');
+                grid.innerHTML = data.map(m => `
+                    <div class="glass-panel p-6">
+                        <div class="flex justify-between mb-2"><h3 class="font-bold">${m.first_name} ${m.last_name}</h3><span class="text-green-400 font-bold">$${m.hourly_rate}</span></div>
+                        <p class="text-xs text-gray-400 mb-4">${m.city || 'NY'}</p>
+                        <button onclick="openMentorProfile(${m.id})" class="btn-silver w-full py-2 text-xs">REQUEST SESSION</button>
+                    </div>`).join('');
+            } catch(e) {}
+        }
+
+        function openModal(mode, role = 'learner') {
+            document.getElementById('authModal').classList.replace('hidden', 'flex');
+            const loginSec = document.getElementById('loginSection');
+            const progress = document.getElementById('wizardProgress');
+            const controls = document.getElementById('wizardControls');
+            if(mode === 'login') {
+                loginSec.classList.remove('hidden-section');
+                progress.classList.add('hidden');
+                controls.classList.add('hidden');
+                hideSteps();
+            } else {
+                userRole = role;
+                loginSec.classList.add('hidden-section');
+                progress.classList.remove('hidden');
+                controls.classList.remove('hidden');
+                const mentorFields = document.getElementById('mentorFields');
+                if(mentorFields) mentorFields.style.display = role === 'mentor' ? 'block' : 'none';
+                currentStep = 1;
+                showStep(1);
+            }
+        }
+        function hideSteps() { document.querySelectorAll('.wizard-step').forEach(s => s.classList.add('hidden-section')); }
+        function showStep(step) {
+            hideSteps();
+            document.getElementById(`step${step}`).classList.remove('hidden-section');
+            document.getElementById('stepCount').innerText = `${step}/${totalSteps}`;
+            document.getElementById('progressBar').style.width = `${(step/totalSteps)*100}%`;
+            const nextBtn = document.getElementById('nextBtn');
+            const backBtn = document.getElementById('backBtn');
+            backBtn.style.visibility = step === 1 ? 'hidden' : 'visible';
+            nextBtn.innerText = step === totalSteps ? "FINISH REGISTRATION" : "CONTINUE";
+        }
+        function changeStep(dir) {
+            if (dir === 1) {
+                if (currentStep < totalSteps) { currentStep++; showStep(currentStep); } else { handleRegistration(); }
+            } else { currentStep--; showStep(currentStep); }
+        }
+        function setHasCar(val) {
+            hasCar = val;
+            const yes = document.getElementById('carBtnYes');
+            const no = document.getElementById('carBtnNo');
+            const details = document.getElementById('carDetailsForm');
+            yes.className = val ? "flex-1 p-4 rounded-xl bg-white text-black font-bold transition-all" : "flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all";
+            no.className = !val ? "flex-1 p-4 rounded-xl bg-white text-black font-bold transition-all" : "flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all";
+            val ? details.classList.remove('hidden') : details.classList.add('hidden');
+        }
+        async function handleRegistration() {
+            const btn = document.getElementById('nextBtn');
+            if(!document.getElementById('regConsent').checked) return alert("Agree to terms required");
+            btn.innerText = "Processing...";
+            const payload = {
+                role: userRole, first_name: document.getElementById('regFirst').value, last_name: document.getElementById('regLast').value,
+                email: document.getElementById('regEmail').value, password: document.getElementById('regPass').value, license_number: document.getElementById('regLicense').value,
+                address: document.getElementById('regAddress').value, city: document.getElementById('regCity').value, state: "NY", zip_code: document.getElementById('regZip').value,
+                hourly_rate: parseFloat(document.getElementById('regRate').value || 0), has_car: hasCar, car_make_model: document.getElementById('regCarModel').value || null, car_plate: document.getElementById('regCarPlate').value || null
+            };
+            try {
+                const res = await fetch(`${API_URL}/register`, { method: 'POST', headers: {'Content-Type': 'application/json'}, body: JSON.stringify(payload) });
+                if(!res.ok) throw new Error((await res.json()).detail);
+                alert("Account created! Please login.");
+                openModal('login');
+            } catch(e) { alert(e.message); }
+            btn.innerText = "FINISH REGISTRATION";
+        }
+        async function loginAction() {
+            try {
+                const res = await fetch(`${API_URL}/login`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ email: document.getElementById('loginEmail').value, password: document.getElementById('loginPass').value }) });
+                if(!res.ok) throw new Error();
+                const data = await res.json();
+                storage.set('lynx_user', data.user);
+                showDashboard(data.user);
+                closeModal();
+            } catch(e) { alert("Login failed"); }
+        }
+        function showDashboard(user) {
+            currentUser = user;
+            document.getElementById('landingView').classList.add('hidden');
+            document.getElementById('dashboardView').classList.remove('hidden');
+            document.getElementById('navAuthButtons').classList.add('hidden');
+            document.getElementById('navUserArea').classList.remove('hidden');
+            document.getElementById('userNameDisplay').innerText = user.first_name;
+            document.getElementById('roleBadge').innerText = user.role;
+            if(user.role === 'mentor') {
+                document.getElementById('tabRequests').classList.remove('hidden');
+                document.getElementById('tabAvail').classList.remove('hidden');
+                document.getElementById('tabUpcoming').classList.remove('hidden');
+                document.getElementById('tabSession').classList.remove('hidden');
+                document.getElementById('tabFind').classList.add('hidden');
+                switchTab('requests');
+            } else {
+                document.getElementById('tabUpcoming').classList.remove('hidden');
+                document.getElementById('tabSession').classList.remove('hidden');
+                document.getElementById('tabRequests').classList.add('hidden');
+                document.getElementById('tabAvail').classList.add('hidden');
+                document.getElementById('tabFind').classList.remove('hidden');
+                switchTab('find');
+                loadMentors();
+            }
+        }
+        function getNextFourDates(dayName, timeStr) {
+            const daysMap = { 'sun':0, 'mon':1, 'tue':2, 'wed':3, 'thu':4, 'fri':5, 'sat':6 };
+            const targetDay = daysMap[dayName.toLowerCase()];
+            const dates = [];
+            const today = new Date();
+            let current = new Date(today);
+            current.setDate(current.getDate() + 1); 
+            while (current.getDay() !== targetDay) { current.setDate(current.getDate() + 1); }
+            for (let i = 0; i < 4; i++) {
+                const [hours, mins] = timeStr.split(':');
+                const slotDate = new Date(current);
+                slotDate.setHours(parseInt(hours), parseInt(mins), 0, 0);
+                dates.push(slotDate);
+                current.setDate(current.getDate() + 7);
+            }
+            return dates;
+        }
+        const formatDateNice = (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
+        function closeDateModal() { document.getElementById('dateModal').classList.replace('flex','hidden'); }
+        function closeModal() { document.getElementById('authModal').classList.replace('flex','hidden'); }
+        function logout() { storage.remove('lynx_user'); window.location.reload(); }
+        function goHome() { window.location.reload(); }
+        function downloadICS() {
+            // Note: In real logic, use the cache from loadUpcoming
+            alert("This would download the .ics file.");
+        }
+    </script>
+</body>
+</html>
