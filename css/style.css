@@ -1,0 +1,33 @@
+:root { --bg-dark: #050505; --silver: #e5e5e5; --accent-blue: #3b82f6; }
+body { background-color: var(--bg-dark); color: var(--silver); font-family: 'Inter', sans-serif; }
+
+/* Effects */
+.metallic-text { background: linear-gradient(135deg, #ffffff 0%, #b3b3b3 50%, #666666 100%); -webkit-background-clip: text; -webkit-text-fill-color: transparent; font-weight: 900; }
+.glass-panel { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(24px); border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 24px; }
+.lynx-input { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: white; padding: 1rem; border-radius: 12px; width: 100%; outline: none; transition: 0.2s; }
+.lynx-input:focus { border-color: white; background: rgba(255,255,255,0.1); }
+
+/* Buttons */
+.btn-silver { background: linear-gradient(180deg, #ffffff, #9ca3af); color: black; font-weight: 800; text-transform: uppercase; padding: 12px; border-radius: 12px; transition: 0.2s; }
+.btn-silver:active { transform: scale(0.98); }
+
+/* Utilities */
+.hidden-section { display: none; }
+.qr-placeholder { background-image: radial-gradient(black 30%, transparent 31%), radial-gradient(black 30%, transparent 31%); background-size: 10px 10px; background-position: 0 0, 5px 5px; background-color: white; }
+
+/* Ratings Bar */
+.rating-bar-bg { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 4px; }
+.rating-bar-fill { height: 100%; width: 0%; transition: width 1s ease; }
+.temper-gradient { background: linear-gradient(90deg, #ef4444, #eab308, #22c55e); } 
+.skill-gradient { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+
+/* Calendar Grid */
+.cal-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 8px; }
+.cal-slot { background: rgba(255,255,255,0.05); padding: 8px; border-radius: 8px; font-size: 10px; text-align: center; cursor: pointer; border: 1px solid transparent; transition: all 0.2s; }
+.cal-slot:hover { background: rgba(255,255,255,0.15); }
+.cal-slot.selected { background: white; color: black; font-weight: bold; transform: scale(1.05); }
+.cal-slot.unavailable { opacity: 0.2; cursor: not-allowed; pointer-events: none; background: transparent; border: 1px solid rgba(255,255,255,0.05); }
+
+/* Stars & QR */
+.star-rating.active { color: #fbbf24; }
+#qrCanvas img { display: block; margin: 0 auto; }
