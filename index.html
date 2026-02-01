@@ -24,7 +24,7 @@
         /* Ratings Bar */
         .rating-bar-bg { height: 8px; background: rgba(255,255,255,0.1); border-radius: 4px; overflow: hidden; margin-top: 4px; }
         .rating-bar-fill { height: 100%; width: 0%; transition: width 1s ease; }
-        .temper-gradient { background: linear-gradient(90deg, #ef4444, #eab308, #22c55e); } /* Red (Angry) -> Green (Nice) */
+        .temper-gradient { background: linear-gradient(90deg, #ef4444, #eab308, #22c55e); } 
         .skill-gradient { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
         
         /* Calendar Grid */
@@ -87,7 +87,7 @@
             <button onclick="switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Requests</button>
             <button onclick="switchTab('upcoming')" id="tabUpcoming" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Upcoming</button>
             <button onclick="switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Set Availability</button>
-            <button onclick="switchTab('session')" id="tabSession" class="text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Active Session</button>
+            <button onclick="switchTab('session')" id="tabSession" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Active Session</button>
         </div>
         
         <div id="viewManageAvailability" class="hidden">
@@ -433,7 +433,8 @@
             const grid = document.getElementById('upcomingGrid');
             grid.innerHTML = '<div class="text-center text-gray-500">Loading schedule...</div>';
             try {
-                const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${currentUser.id}`);
+                // FIXED: Added role parameter so backend searches correctly for mentors
+                const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${currentUser.id}&role=${currentUser.role}`);
                 const data = await res.json();
                 
                 if(data.length === 0) {
@@ -462,15 +463,18 @@
         }
 
         function enterSessionMode(sessionId) {
-            // In a real app, fetch the session details first. 
-            // For now, assume we switch context.
+            if(!sessionId) return;
+            // 1. Unhide the Session Tab
+            document.getElementById('tabSession').classList.remove('hidden');
+            
+            // 2. Init Session Context
             activeSession = { id: sessionId, status: 'scheduled' }; // Placeholder init
             
-            // Trigger UI update & Start polling
+            // 3. Trigger UI update & Start polling
             syncSessionStatus();
             sessionPoller = setInterval(syncSessionStatus, 5000); 
             
-            document.getElementById('tabSession').classList.remove('hidden');
+            // 4. Switch View
             switchTab('session');
         }
 
@@ -507,7 +511,7 @@
 
             badge.innerText = activeSession.status.toUpperCase();
             
-            if(activeSession.status === 'scheduled') {
+            if(activeSession.status === 'accepted' || activeSession.status === 'scheduled') {
                 badge.className = "px-2 py-1 rounded bg-yellow-500/20 text-yellow-500 text-[10px] font-bold";
                 header.innerText = "Start Session";
                 
@@ -634,6 +638,7 @@
         function exitSession() {
             clearInterval(sessionPoller);
             activeSession = null;
+            document.getElementById('tabSession').classList.add('hidden'); // Hide tab again
             switchTab('upcoming');
         }
 
@@ -954,12 +959,12 @@
                 document.getElementById('tabRequests').classList.remove('hidden');
                 document.getElementById('tabAvail').classList.remove('hidden');
                 document.getElementById('tabUpcoming').classList.remove('hidden');
-                document.getElementById('tabSession').classList.remove('hidden');
+                // FIXED: Removed unconditional unhiding of tabSession here
                 document.getElementById('tabFind').classList.add('hidden');
                 switchTab('requests');
             } else {
                 document.getElementById('tabUpcoming').classList.remove('hidden');
-                document.getElementById('tabSession').classList.remove('hidden');
+                // FIXED: Removed unconditional unhiding of tabSession here
                 document.getElementById('tabRequests').classList.add('hidden');
                 document.getElementById('tabAvail').classList.add('hidden');
                 document.getElementById('tabFind').classList.remove('hidden');
