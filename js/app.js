@@ -316,18 +316,28 @@ const app = {
 
     async submitBooking() {
         try {
+            // 1. Create Booking
             const booking = await api.createBooking({
                 mentor_id: this.state.selectedMentor.id,
                 mentee_id: this.state.currentUser.id,
                 datetime_slots: this.state.selectedSlots
             });
+
+            // 2. Generate a Unique "Stripe-like" Payment ID
+            // In a real app, Stripe provides this. Here we simulate it securely.
+            const uniquePaymentId = "pi_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
+
+            // 3. Confirm Payment with this ID
             await api.confirmPayment({
                 session_ids: booking.booking_ids,
-                payment_method_id: "pm_card_demo"
+                payment_method_id: uniquePaymentId // <-- This is now the "Meaningful String"
             });
-            alert("Payment Successful!");
+
+            alert("Payment Authorized! ID: " + uniquePaymentId);
             this.switchTab('find');
-        } catch (e) { alert("Transaction failed: " + e.message); }
+        } catch (e) { 
+            alert("Transaction failed: " + e.message); 
+        }
     },
 
     showAvailabilityEditor() {
