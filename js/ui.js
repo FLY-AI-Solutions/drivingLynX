@@ -1,5 +1,5 @@
 const ui = {
-    // --- Navigation ---
+    // --- Navigation (No Changes) ---
     switchTab(tabId, userRole) {
         const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
         views.forEach(id => document.getElementById(id).classList.add('hidden'));
@@ -63,18 +63,59 @@ const ui = {
             </div>`).join('');
     },
 
-    renderRequests(data) {
+    // --- UPDATED: Requests View with Payout Reminder ---
+    renderRequests(data, currentUser) {
         const grid = document.getElementById('requestsGrid');
-        
-        // FILTER: Only show pending items. Accepted ones are in 'Upcoming'.
+        grid.innerHTML = ""; // Clear current
+
+        // 1. Check for Payout Issue (Mentor + Charging Money + Not Onboarded)
+        // We assume "Helping Mode" means hourly_rate is 0.
+        if (currentUser.role === 'mentor' && currentUser.hourly_rate > 0 && !currentUser.stripe_onboarding_complete) {
+            grid.innerHTML += `
+            <div class="bg-orange-500/10 border border-orange-500/30 p-6 rounded-xl mb-6 relative overflow-hidden">
+                <div class="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 relative z-10">
+                    <div>
+                        <h3 class="text-orange-400 font-bold text-lg flex items-center gap-2">
+                            ⚠️ Payments Not Configured
+                        </h3>
+                        <p class="text-sm text-gray-300 mt-1">
+                            You cannot receive paid booking requests until you set up payouts.
+                        </p>
+                    </div>
+                    <div class="flex flex-col w-full md:w-auto gap-2">
+                        <button onclick="app.startStripeOnboarding()" class="bg-orange-500 hover:bg-orange-400 text-black font-bold py-2 px-4 rounded text-xs transition-colors">
+                            SETUP PAYOUTS
+                        </button>
+                        <button onclick="app.activateHelpingMode()" class="text-orange-400 hover:text-white text-xs font-bold underline py-1">
+                            Switch to "Helping Mode" (Volunteer)
+                        </button>
+                    </div>
+                </div>
+            </div>`;
+        } else if (currentUser.role === 'mentor' && currentUser.hourly_rate === 0) {
+             // Optional: Show a badge that they are in Helping Mode
+             grid.innerHTML += `
+             <div class="bg-blue-500/10 border border-blue-500/30 p-4 rounded-xl mb-6 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <span class="text-2xl">🤝</span>
+                    <div>
+                        <h3 class="text-blue-400 font-bold text-sm">Helping Mode Active</h3>
+                        <p class="text-[10px] text-gray-400">You are volunteering your time. Thank you!</p>
+                    </div>
+                </div>
+                <button onclick="alert('To charge for sessions, please update your profile rate.')" class="text-xs text-gray-500 hover:text-white">Change</button>
+             </div>`;
+        }
+
+        // 2. Render Requests
         const pending = data.filter(r => r.status === 'pending');
 
         if (pending.length === 0) { 
-            grid.innerHTML = "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; 
+            grid.innerHTML += "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; 
             return; 
         }
 
-        grid.innerHTML = pending.map(r => `
+        grid.innerHTML += pending.map(r => `
             <div class="glass-panel p-4 flex justify-between items-center">
                 <div>
                     <h4 class="font-bold text-white">${r.mentee_name}</h4>
@@ -87,10 +128,12 @@ const ui = {
                 </div>
             </div>`).join('');
     },
-
+    // ... (Keep existing profile/calendar/session renderers) ...
     renderProfile(data, availability, selectedSlots) {
         document.getElementById('profileName').innerText = `${data.first_name} ${data.last_name}`;
-        document.getElementById('profileRate').innerText = `$${data.hourly_rate}/hr`;
+        // Update to handle $0/free
+        const rateDisplay = data.hourly_rate > 0 ? `$${data.hourly_rate}/hr` : "Free (Volunteer)";
+        document.getElementById('profileRate').innerText = rateDisplay;
         document.getElementById('profileInitials').innerText = data.first_name[0];
         document.getElementById('profileCar').innerText = data.car || "Uses Student Car";
 
@@ -135,7 +178,6 @@ const ui = {
         });
     },
 
-    // --- Session Status Renderer ---
     renderSessionStatus(session, role) {
         const header = document.getElementById('sessionHeader');
         const instr = document.getElementById('sessionInstruction');
@@ -158,7 +200,6 @@ const ui = {
 
         badge.innerText = session.status.toUpperCase();
 
-        // 1. Scheduled / Accepted State
         if (session.status === 'accepted' || session.status === 'scheduled') {
             badge.className = "px-2 py-1 rounded bg-yellow-500/20 text-yellow-500 text-[10px] font-bold";
             header.innerText = "Start Session";
@@ -170,11 +211,9 @@ const ui = {
             } else {
                 instr.innerText = "Scan Mentor's Start Code.";
                 btnScan.classList.remove('hidden');
-                btnScan.onclick = () => app.startScanner(); // FIX: Attach click handler
+                btnScan.onclick = () => app.startScanner(); 
                 this.setupScannerDOM(scanContainer);
             }
-        
-        // 2. Active State
         } else if (session.status === 'active') {
             badge.className = "px-2 py-1 rounded bg-green-500/20 text-green-500 text-[10px] font-bold";
             header.innerText = "Driving in Progress";
@@ -183,15 +222,13 @@ const ui = {
                 instr.innerText = "Scan Student's QR to finish.";
                 evalForm.classList.remove('hidden');
                 btnScan.classList.remove('hidden');
-                btnScan.onclick = () => app.startScanner(); // FIX: Attach click handler
+                btnScan.onclick = () => app.startScanner(); 
                 this.setupScannerDOM(scanContainer);
             } else {
                 instr.innerText = "Show this code to Mentor to finish.";
                 btnQR.classList.remove('hidden');
                 btnQR.innerText = "GENERATE FINISH CODE";
             }
-
-        // 3. Completed State
         } else if (session.status === 'completed') {
             badge.className = "px-2 py-1 rounded bg-blue-500/20 text-blue-500 text-[10px] font-bold";
             header.innerText = "Session Completed";
@@ -233,7 +270,6 @@ const ui = {
 
 
 // const ui = {
-//     // ... (Keep existing navigation and list renderers) ...
 //     // --- Navigation ---
 //     switchTab(tabId, userRole) {
 //         const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
@@ -245,13 +281,11 @@ const ui = {
 //             if (el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap';
 //         });
 
-//         // Role Protection
 //         if (userRole !== 'mentor') {
 //             document.getElementById('tabRequests').classList.add('hidden');
 //             document.getElementById('tabAvail').classList.add('hidden');
 //         }
 
-//         // Show View
 //         const map = {
 //             'find': 'viewFind', 'requests': 'viewRequests', 'session': 'viewSession',
 //             'avail': 'viewManageAvailability', 'upcoming': 'viewUpcoming'
@@ -302,10 +336,22 @@ const ui = {
 
 //     renderRequests(data) {
 //         const grid = document.getElementById('requestsGrid');
-//         if (data.length === 0) { grid.innerHTML = "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; return; }
-//         grid.innerHTML = data.map(r => `
+        
+//         // FILTER: Only show pending items. Accepted ones are in 'Upcoming'.
+//         const pending = data.filter(r => r.status === 'pending');
+
+//         if (pending.length === 0) { 
+//             grid.innerHTML = "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; 
+//             return; 
+//         }
+
+//         grid.innerHTML = pending.map(r => `
 //             <div class="glass-panel p-4 flex justify-between items-center">
-//                 <div><h4 class="font-bold text-white">${r.mentee_name}</h4><p class="text-xs text-gray-400">Scheduled: ${new Date(r.scheduled).toLocaleString()}</p><span class="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">PENDING</span></div>
+//                 <div>
+//                     <h4 class="font-bold text-white">${r.mentee_name}</h4>
+//                     <p class="text-xs text-gray-400">Scheduled: ${new Date(r.scheduled).toLocaleString()}</p>
+//                     <span class="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">PENDING</span>
+//                 </div>
 //                 <div class="flex gap-2">
 //                     <button onclick="app.handleRequest(${r.session_id}, 'accept')" class="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg text-xs font-bold border border-green-500/50 hover:bg-green-500/30">ACCEPT</button>
 //                     <button onclick="app.handleRequest(${r.session_id}, 'reject')" class="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-xs font-bold border border-red-500/50 hover:bg-red-500/30">REJECT</button>
@@ -319,7 +365,6 @@ const ui = {
 //         document.getElementById('profileInitials').innerText = data.first_name[0];
 //         document.getElementById('profileCar').innerText = data.car || "Uses Student Car";
 
-//         // Animated Bars
 //         const setBar = (id, val, max = 5) => {
 //             const pct = (val / max) * 100;
 //             setTimeout(() => document.getElementById(id).style.width = `${pct}%`, 100);
@@ -344,10 +389,9 @@ const ui = {
 //             days.forEach(day => {
 //                 const div = document.createElement('div');
 //                 const isAvail = avail[day] && avail[day].includes(time);
-//                 // Check if actively selected
 //                 const isActive = selectedSlots.some(s => {
 //                     const d = new Date(s);
-//                     const dIndex = d.getDay(); // 0=Sun
+//                     const dIndex = d.getDay(); 
 //                     const dName = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dIndex];
 //                     const dTime = d.toTimeString().substring(0, 5);
 //                     return dName === day && dTime === time;
@@ -362,7 +406,7 @@ const ui = {
 //         });
 //     },
 
-//     // --- UPDATED Session Status Renderer ---
+//     // --- Session Status Renderer ---
 //     renderSessionStatus(session, role) {
 //         const header = document.getElementById('sessionHeader');
 //         const instr = document.getElementById('sessionInstruction');
@@ -373,7 +417,7 @@ const ui = {
 //         const evalForm = document.getElementById('mentorEvalForm');
 //         const rateForm = document.getElementById('ratingForm');
 
-//         // Reset visibility (Be careful NOT to hide scan container if it's already active)
+//         // Reset visibility
 //         if (!scanContainer.innerHTML.includes("reader")) {
 //              scanContainer.classList.add('hidden');
 //         }
@@ -397,7 +441,7 @@ const ui = {
 //             } else {
 //                 instr.innerText = "Scan Mentor's Start Code.";
 //                 btnScan.classList.remove('hidden');
-//                 // Ensure scanner box has the reader div
+//                 btnScan.onclick = () => app.startScanner(); // FIX: Attach click handler
 //                 this.setupScannerDOM(scanContainer);
 //             }
         
@@ -410,6 +454,7 @@ const ui = {
 //                 instr.innerText = "Scan Student's QR to finish.";
 //                 evalForm.classList.remove('hidden');
 //                 btnScan.classList.remove('hidden');
+//                 btnScan.onclick = () => app.startScanner(); // FIX: Attach click handler
 //                 this.setupScannerDOM(scanContainer);
 //             } else {
 //                 instr.innerText = "Show this code to Mentor to finish.";
@@ -426,20 +471,16 @@ const ui = {
 //         }
 //     },
 
-//     // Helper to inject the camera div
 //     setupScannerDOM(container) {
-//         // Only inject if not already there to prevent re-init issues
 //         if (!document.getElementById('reader')) {
 //             container.innerHTML = `
 //                 <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden;"></div>
-//                 <button onclick="app.processManualScan()" class="text-xs text-gray-500 mt-2 underline">Use Manual Input</button>
-//                 <input type="text" id="scanInput" class="hidden lynx-input mt-2"> 
+//                 <button onclick="app.processManualScan()" class="text-xs text-gray-500 mt-2 underline block mx-auto">Use Manual Input</button>
+//                 <input type="text" id="scanInput" class="hidden lynx-input mt-2 text-center" placeholder="Paste Token"> 
 //             `;
-//             // Note: Manual input can be toggled if camera fails
 //         }
 //     },
 
-//     // --- Helpers ---
 //     formatDateNice: (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     
 //     getNextFourDates(dayName, timeStr) {
@@ -460,4 +501,6 @@ const ui = {
 //         return dates;
 //     }
 // };
+
+
 
