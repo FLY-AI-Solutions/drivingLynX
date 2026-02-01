@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>drivingLynX | Secure Connections</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+    
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+    <div id="splash" class="fixed inset-0 bg-[#050505] z-[200] flex flex-col items-center justify-center transition-transform duration-1000 ease-in-out">
+        <h1 class="text-6xl metallic-text tracking-tighter">drivingLynX</h1>
+    </div>
+
+    <nav class="h-20 border-b border-white/5 flex justify-between items-center px-6 sticky top-0 bg-black/80 backdrop-blur-md z-40">
+        <div class="flex items-center gap-3 cursor-pointer" onclick="app.goHome()">
+            <span class="metallic-text text-lg">drivingLynX</span>
+        </div>
+        <div id="navAuthButtons" class="flex gap-4">
+            <button onclick="app.openModal('login')" class="text-xs font-bold text-gray-400 hover:text-white">LOGIN</button>
+            <button onclick="app.openModal('register', 'learner')" class="btn-silver px-6 py-2 rounded-full text-xs">JOIN NOW</button>
+        </div>
+        <div id="navUserArea" class="hidden flex items-center gap-4">
+            <div class="text-right">
+                <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="roleBadge">User</span>
+                <span id="userNameDisplay" class="text-white font-bold text-sm">Driver</span>
+            </div>
+            <button onclick="app.logout()" class="text-[10px] font-bold text-red-500 border border-red-500/20 px-3 py-1 rounded">LOGOUT</button>
+        </div>
+    </nav>
+
+    <main id="landingView" class="max-w-7xl mx-auto py-12 px-6">
+        <div class="grid md:grid-cols-2 gap-6 h-[70vh]">
+            <div onclick="app.openModal('register', 'learner')" class="glass-panel p-10 flex flex-col justify-end cursor-pointer group hover:bg-white/5 transition-all relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-black mb-2 text-white">I need a Mentor</h2>
+                    <p class="text-gray-400">Book sessions with rated mentors.</p>
+                </div>
+            </div>
+            <div onclick="app.openModal('register', 'mentor')" class="glass-panel p-10 flex flex-col justify-end cursor-pointer group hover:bg-white/5 transition-all relative overflow-hidden">
+                <div class="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent"></div>
+                <div class="relative z-10">
+                    <h2 class="text-4xl font-black mb-2 text-white">I want to Mentor</h2>
+                    <p class="text-gray-400">Manage your schedule and get paid.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <main id="dashboardView" class="hidden max-w-7xl mx-auto py-12 px-6">
+        <div class="flex gap-4 mb-8 border-b border-white/10 pb-4 overflow-x-auto">
+            <button onclick="app.switchTab('find')" id="tabFind" class="text-white font-bold border-b-2 border-white pb-4 whitespace-nowrap">Find Mentor</button>
+            <button onclick="app.switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Requests</button>
+            <button onclick="app.switchTab('upcoming')" id="tabUpcoming" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Upcoming</button>
+            <button onclick="app.switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Set Availability</button>
+            <button onclick="app.switchTab('session')" id="tabSession" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Active Session</button>
+        </div>
+        
+        <div id="viewManageAvailability" class="hidden">
+            <h2 class="text-2xl font-bold mb-6">Set Your Weekly Availability</h2>
+            <div class="glass-panel p-8">
+                <div id="availabilityEditor" class="space-y-6"></div>
+                <button onclick="app.saveAvailability()" class="btn-silver w-full mt-8 py-4 rounded-xl">SAVE ALL SLOTS</button>
+            </div>
+        </div>
+        
+        <div id="viewUpcoming" class="hidden">
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Upcoming Appointments</h2>
+                <button class="btn-silver py-2 px-4 text-xs flex items-center gap-2">📅 Download .ics</button>
+            </div>
+            <div id="upcomingGrid" class="grid gap-4 md:grid-cols-2"></div>
+        </div>
+
+        <div id="viewFind">
+            <div class="flex flex-col md:flex-row justify-between items-end mb-8 gap-4 glass-panel p-6">
+                <div>
+                    <h3 class="font-bold mb-2">Filters</h3>
+                    <div class="flex gap-4">
+                        <input type="text" id="filterZip" placeholder="Zip Code" class="lynx-input py-2 w-32 text-sm">
+                        <input type="number" id="filterRate" placeholder="Max Rate ($)" class="lynx-input py-2 w-32 text-sm">
+                    </div>
+                </div>
+                <div class="flex gap-2">
+                    <button onclick="app.loadMentors()" class="btn-silver px-6 py-2 rounded-lg text-xs">Apply Filters</button>
+                </div>
+            </div>
+            <div id="mentorGrid" class="grid md:grid-cols-3 gap-6"></div>
+        </div>
+
+        <div id="viewProfile" class="hidden">
+            <button onclick="app.switchTab('find')" class="mb-4 text-xs font-bold text-gray-500 hover:text-white">← BACK TO LIST</button>
+            <div class="grid md:grid-cols-3 gap-8">
+                <div class="glass-panel p-8 h-fit">
+                    <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center text-3xl font-black mb-4 mx-auto border border-white/20" id="profileInitials"></div>
+                    <h2 class="text-3xl font-black text-center mb-1" id="profileName">Name</h2>
+                    <p class="text-center text-green-400 font-bold mb-6" id="profileRate">$0/hr</p>
+                    <div class="space-y-6 mb-8">
+                        <div>
+                            <div class="flex justify-between text-xs font-bold mb-1 uppercase tracking-widest text-gray-400"><span>Temper</span> <span id="valTemper" class="text-white">Nice</span></div>
+                            <div class="rating-bar-bg"><div id="barTemper" class="rating-bar-fill temper-gradient" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-bold mb-1 uppercase tracking-widest text-gray-400"><span>Skills</span> <span id="valSkills" class="text-white">5/5</span></div>
+                            <div class="rating-bar-bg"><div id="barSkills" class="rating-bar-fill skill-gradient" style="width: 0%"></div></div>
+                        </div>
+                        <div>
+                            <div class="flex justify-between text-xs font-bold mb-1 uppercase tracking-widest text-gray-400"><span>Knowledge</span> <span id="valKnowledge" class="text-white">5/5</span></div>
+                            <div class="rating-bar-bg"><div id="barKnowledge" class="rating-bar-fill skill-gradient" style="width: 0%"></div></div>
+                        </div>
+                    </div>
+                    <div class="p-4 bg-white/5 rounded-xl">
+                        <p class="text-xs text-gray-400 mb-1 font-bold uppercase">Vehicle</p>
+                        <p id="profileCar" class="text-sm font-bold">Uses Student Car</p>
+                    </div>
+                </div>
+
+                <div class="glass-panel p-8 col-span-2">
+                    <h3 class="text-xl font-bold mb-4">Select Session Slots</h3>
+                    <p class="text-xs text-gray-400 mb-6">Times are shown in local mentor time. Click to select multiple slots.</p>
+                    <div class="grid grid-cols-7 gap-2 mb-2 text-center text-[10px] font-bold text-gray-500 uppercase tracking-wider">
+                        <div>Mon</div><div>Tue</div><div>Wed</div><div>Thu</div><div>Fri</div><div>Sat</div><div>Sun</div>
+                    </div>
+                    <div id="calendarGrid" class="cal-grid mb-8"></div>
+                    <div class="flex flex-col md:flex-row justify-between items-center border-t border-white/10 pt-6 gap-4">
+                        <div class="text-center md:text-left">
+                            <span class="text-xs text-gray-400 uppercase tracking-widest block">Selected</span>
+                            <span id="selectedCount" class="text-2xl font-bold text-white">0</span> <span class="text-sm text-gray-500">slots</span>
+                        </div>
+                        <button onclick="app.proceedToPayment()" class="btn-silver px-8 py-3 rounded-xl w-full md:w-auto">REVIEW & BOOK</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="dateModal" class="fixed inset-0 z-[150] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+            <div class="glass-panel w-full max-w-md p-6 relative">
+                <button onclick="app.closeDateModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+                <h3 class="text-xl font-bold mb-1 text-white">Select Dates</h3>
+                <p id="dateModalTitle" class="text-sm text-blue-400 font-bold uppercase tracking-widest mb-6">Monday @ 10:00</p>
+                <div id="dateOptionsGrid" class="space-y-3 mb-6"></div>
+                <button onclick="app.confirmDateSelection()" class="btn-silver w-full py-3 rounded-xl shadow-[0_0_15px_rgba(255,255,255,0.3)]">CONFIRM SELECTION</button>
+            </div>
+        </div>
+
+        <div id="viewPayment" class="hidden max-w-2xl mx-auto">
+            <button onclick="document.getElementById('viewPayment').classList.add('hidden'); document.getElementById('viewProfile').classList.remove('hidden');" class="mb-4 text-xs font-bold text-gray-500 hover:text-white">← EDIT BOOKING</button>
+            <div class="glass-panel p-8">
+                <h2 class="text-3xl font-black mb-6">Booking Summary</h2>
+                <div class="space-y-3 mb-8 text-sm text-gray-300 bg-white/5 p-6 rounded-xl">
+                    <div class="flex justify-between"><span>Sessions Count</span> <span id="payCount" class="text-white font-bold">0</span></div>
+                    <div class="flex justify-between"><span>Rate per Hour</span> <span id="payRate" class="text-white font-bold">$0.00</span></div>
+                    <div class="flex justify-between"><span>Subtotal</span> <span id="paySubtotal" class="text-white font-bold">$0.00</span></div>
+                    <div class="flex justify-between text-blue-300"><span>Platform Fee</span> <span id="payFees">$5.00</span></div>
+                    <div class="border-t border-white/10 my-2"></div>
+                    <div class="flex justify-between text-xl font-bold text-white"><span>Total Due</span> <span id="payTotal">$0.00</span></div>
+                </div>
+
+                <div class="bg-blue-900/20 p-6 rounded-xl mb-6 border border-blue-500/30">
+                    <div class="flex items-center gap-3 mb-4">
+                        <div class="w-8 h-8 rounded-full bg-blue-500 flex items-center justify-center">💳</div>
+                        <h4 class="font-bold text-blue-100">Secure Payment (Demo)</h4>
+                    </div>
+                    <input type="text" placeholder="Card Number (4242 4242 4242 4242)" class="lynx-input mb-3 bg-blue-900/40 border-blue-500/30">
+                    <div class="grid grid-cols-2 gap-3">
+                        <input type="text" placeholder="MM/YY" class="lynx-input bg-blue-900/40 border-blue-500/30">
+                        <input type="text" placeholder="CVC" class="lynx-input bg-blue-900/40 border-blue-500/30">
+                    </div>
+                </div>
+                <button onclick="app.submitBooking()" class="btn-silver w-full py-4 rounded-xl text-sm">AUTHORIZE PAYMENT & SEND REQUEST</button>
+            </div>
+        </div>
+
+        <div id="viewRequests" class="hidden">
+            <h2 class="text-2xl font-bold mb-6">Incoming Booking Requests</h2>
+            <div id="requestsGrid" class="space-y-4"></div>
+        </div>
+        
+        <div id="viewSession" class="hidden">
+            <div class="max-w-md mx-auto">
+                <div class="flex justify-between items-center mb-4">
+                    <button onclick="app.exitSession()" class="text-xs font-bold text-gray-500">← EXIT SESSION VIEW</button>
+                    <span id="sessionStateBadge" class="px-2 py-1 rounded bg-white/10 text-[10px] font-bold uppercase text-white">Loading...</span>
+                </div>
+
+                <div class="glass-panel p-8 text-center mb-6">
+                    <h2 class="text-2xl font-black mb-2" id="sessionHeader">Session Ready</h2>
+                    <p class="text-sm text-gray-400 mb-6" id="sessionInstruction">Follow the steps below to connect.</p>
+                    
+                    <div id="qrContainer" class="hidden mb-6">
+                        <div id="qrCanvas" class="mx-auto bg-white p-4 rounded-lg inline-block"></div>
+                        <p class="text-[10px] text-gray-500 mt-2 uppercase tracking-widest">Secure Token Generated</p>
+                    </div>
+
+                    <div id="scanContainer" class="hidden mb-6">
+                        <div class="w-48 h-48 mx-auto border-2 border-dashed border-white/30 rounded-lg flex items-center justify-center mb-4 relative overflow-hidden">
+                            <div class="absolute inset-0 bg-gradient-to-b from-transparent via-blue-500/20 to-transparent animate-pulse"></div>
+                            <span class="text-xs text-gray-500">Camera View</span>
+                        </div>
+                        <input type="text" id="scanInput" placeholder="Paste Token Here" class="lynx-input text-center text-xs mb-2">
+                        <button onclick="app.processScan()" class="btn-silver w-full py-2 text-xs">SIMULATE SCAN</button>
+                    </div>
+
+                    <button id="btnGenerateQR" onclick="app.generateQR()" class="hidden btn-silver w-full py-3 mb-2">SHOW MY QR CODE</button>
+                    <button id="btnOpenScanner" onclick="app.openScannerUI()" class="hidden border border-white/20 w-full py-3 rounded-xl font-bold text-sm hover:bg-white/10">OPEN SCANNER</button>
+                </div>
+
+                <div id="mentorEvalForm" class="hidden glass-panel p-6 mb-6">
+                    <h3 class="font-bold text-white mb-4">DMV Evaluation Checklist</h3>
+                    <div class="space-y-3">
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Smooth Steering</span>
+                            <input type="checkbox" id="evalSteering" class="w-5 h-5 accent-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Mirrors / Blind Spots</span>
+                            <input type="checkbox" id="evalMirrors" class="w-5 h-5 accent-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Braking Control</span>
+                            <input type="checkbox" id="evalBraking" class="w-5 h-5 accent-blue-500">
+                        </label>
+                        <label class="flex items-center justify-between p-3 bg-white/5 rounded-lg">
+                            <span class="text-sm text-gray-300">Signals Used</span>
+                            <input type="checkbox" id="evalSignals" class="w-5 h-5 accent-blue-500">
+                        </label>
+                    </div>
+                    <button onclick="app.saveEvaluation()" class="mt-4 w-full py-2 bg-blue-600/20 border border-blue-500/50 text-blue-400 font-bold rounded-lg text-xs">SAVE POINTS</button>
+                </div>
+
+                <div id="ratingForm" class="hidden glass-panel p-6 text-center">
+                    <h3 class="font-bold text-white mb-2">Rate your Experience</h3>
+                    <p class="text-xs text-gray-400 mb-4">Help us maintain quality.</p>
+                    <div class="flex justify-center gap-2 mb-6" id="starContainer">
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="app.setStar(1)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="app.setStar(2)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="app.setStar(3)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="app.setStar(4)">★</span>
+                        <span class="star-rating text-2xl cursor-pointer text-gray-600 hover:text-yellow-400" onclick="app.setStar(5)">★</span>
+                    </div>
+                    <textarea id="ratingComment" class="lynx-input mb-4 h-24 text-sm" placeholder="Optional comments..."></textarea>
+                    <button onclick="app.submitRating()" class="btn-silver w-full py-3">SUBMIT RATING</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <div id="authModal" class="fixed inset-0 z-[100] hidden items-center justify-center bg-black/95 backdrop-blur-xl p-4">
+        <div class="glass-panel w-full max-w-lg p-8 relative overflow-y-auto max-h-[90vh]">
+            <button onclick="app.closeModal()" class="absolute top-6 right-6 text-gray-500 hover:text-white">✕</button>
+
+            <div id="wizardProgress" class="mb-8 hidden">
+                <div class="flex justify-between text-[10px] font-bold uppercase tracking-widest text-gray-500 mb-2">
+                    <span id="stepLabel">Identity</span>
+                    <span id="stepCount">1/4</span>
+                </div>
+                <div class="h-1 bg-white/10 rounded-full overflow-hidden">
+                    <div id="progressBar" class="h-full bg-white transition-all duration-500" style="width: 25%"></div>
+                </div>
+            </div>
+
+            <form id="authForm" onsubmit="return false;">
+                <div id="loginSection" class="hidden-section">
+                    <h2 class="text-3xl font-black metallic-text mb-6">Welcome Back</h2>
+                    <input type="email" id="loginEmail" placeholder="Email" class="lynx-input mb-4" required>
+                    <input type="password" id="loginPass" placeholder="Password" class="lynx-input mb-6" required>
+                    <button type="button" onclick="app.loginAction()" id="loginBtn" class="btn-silver w-full py-4 rounded-xl">ENTER DASHBOARD</button>
+                </div>
+
+                <div id="step1" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Account Basics</h3>
+                    <div class="grid grid-cols-2 gap-4 mb-4">
+                        <input type="text" id="regFirst" placeholder="First Name" class="lynx-input">
+                        <input type="text" id="regLast" placeholder="Last Name" class="lynx-input">
+                    </div>
+                    <input type="email" id="regEmail" placeholder="Email Address" class="lynx-input mb-4">
+                    <input type="password" id="regPass" placeholder="Create Password" class="lynx-input">
+                </div>
+                <div id="step2" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Details & Location</h3>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">YOUR ADDRESS</label>
+                    <input type="text" id="regAddress" placeholder="Street Address" class="lynx-input mb-2">
+                    <div class="grid grid-cols-3 gap-2 mb-4">
+                        <input type="text" id="regCity" placeholder="City" class="lynx-input col-span-2">
+                        <input type="text" id="regZip" placeholder="Zip" class="lynx-input">
+                    </div>
+                    <div id="mentorFields" class="hidden mb-4">
+                        <label class="block text-xs font-bold text-gray-500 mb-1">HOURLY RATE</label>
+                        <input type="number" id="regRate" placeholder="Price per hour ($)" class="lynx-input">
+                    </div>
+                    <label class="block text-xs font-bold text-gray-500 mb-1">LICENSE #</label>
+                    <input type="text" id="regLicense" placeholder="Permit / License Number" class="lynx-input">
+                </div>
+                <div id="step3" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-2">Vehicle Availability</h3>
+                    <div class="flex gap-4 mb-6">
+                        <button type="button" onclick="app.setHasCar(true)" id="carBtnYes" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">YES</button>
+                        <button type="button" onclick="app.setHasCar(false)" id="carBtnNo" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">NO</button>
+                    </div>
+                    <div id="carDetailsForm" class="hidden space-y-4 border-t border-white/10 pt-4">
+                        <input type="text" id="regCarModel" placeholder="Make & Model" class="lynx-input">
+                        <input type="text" id="regCarPlate" placeholder="License Plate" class="lynx-input">
+                    </div>
+                </div>
+                <div id="step4" class="wizard-step hidden-section">
+                    <h3 class="text-xl font-bold mb-4">Finalize</h3>
+                    <div class="bg-blue-900/20 border border-blue-500/30 p-4 rounded-xl mb-6 text-sm text-blue-200">
+                        <p>No secondary insurance provided. You agree to use the Learner's vehicle and accept liability.</p>
+                    </div>
+                    <label class="flex items-start gap-3 cursor-pointer">
+                        <input type="checkbox" id="regConsent" class="mt-1">
+                        <span class="text-xs text-gray-400">I certify my license is valid.</span>
+                    </label>
+                </div>
+                <div id="wizardControls" class="flex gap-3 mt-8 hidden">
+                    <button type="button" id="backBtn" onclick="app.changeStep(-1)" class="px-6 py-4 rounded-xl bg-white/5 font-bold text-gray-500 text-sm hover:bg-white/10 transition-all">BACK</button>
+                    <button type="button" id="nextBtn" onclick="app.changeStep(1)" class="flex-1 btn-silver py-4 rounded-xl">CONTINUE</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script src="js/api.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>
