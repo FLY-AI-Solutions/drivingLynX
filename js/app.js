@@ -12,13 +12,40 @@ const app = {
         hasCar: false,
         currentStep: 1,
         totalSteps: 4,
-        scanner: null // Track scanner instance
+        scanner: null,
+        stripe: null,
+        cardElement: null
     },
 
     init() {
         setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 1000);
         const user = storage.get('lynx_user');
         if (user) this.showDashboard(user);
+        this.initStripe();
+    },
+
+    // --- STRIPE INIT ---
+    initStripe() {
+        // Use your Stripe Test Public Key here
+        if (window.Stripe) {
+            this.state.stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // Replace if you have your own
+            const elements = this.state.stripe.elements();
+            this.state.cardElement = elements.create('card', {
+                style: {
+                    base: {
+                        color: "#ffffff",
+                        fontFamily: '"Inter", sans-serif',
+                        fontSmoothing: "antialiased",
+                        fontSize: "16px",
+                        "::placeholder": { color: "#aab7c4" }
+                    },
+                    invalid: { color: "#fa755a", iconColor: "#fa755a" }
+                }
+            });
+            // We mount this when the payment view opens, so we check existence
+            // Actually, Stripe Elements needs the DOM to exist. 
+            // We'll mount it inside proceedToPayment to ensure the div is visible.
+        }
     },
 
     // --- Auth & Registration ---
@@ -87,7 +114,6 @@ const app = {
     },
 
     switchTab(tabId) {
-        // Stop any active scanner or poller when switching tabs
         if (this.state.scanner) {
             this.state.scanner.clear();
             this.state.scanner = null;
@@ -99,7 +125,6 @@ const app = {
         
         ui.switchTab(tabId, this.state.currentUser?.role);
 
-        // Load Data
         if (tabId === 'requests') this.loadRequests();
         if (tabId === 'upcoming') this.loadUpcoming();
         if (tabId === 'avail') this.showAvailabilityEditor();
@@ -139,18 +164,15 @@ const app = {
         if (!sessionId) return;
         document.getElementById('tabSession').classList.remove('hidden');
         
-        // 1. Fetch Latest Status FIRST (Fixes QR disappearing bug)
         try {
             const fresh = await api.getSessionStatus(sessionId);
             this.state.activeSession = fresh;
         } catch (e) {
-            this.state.activeSession = { id: sessionId, status: 'scheduled' }; // Fallback
+            this.state.activeSession = { id: sessionId, status: 'scheduled' }; 
         }
         
-        // 2. Render UI
         ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
         
-        // 3. Start Polling
         if (this.state.sessionPoller) clearInterval(this.state.sessionPoller);
         this.state.sessionPoller = setInterval(() => this.syncSessionStatus(), 5000);
         
@@ -161,7 +183,6 @@ const app = {
         if (!this.state.activeSession) return;
         try {
             const fresh = await api.getSessionStatus(this.state.activeSession.id);
-            // Only re-render if status CHANGED (Prevents UI reset)
             if (fresh.status !== this.state.activeSession.status) {
                 this.state.activeSession = fresh;
                 ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
@@ -182,25 +203,22 @@ const app = {
 
     // --- CAMERA LOGIC ---
     startScanner() {
-        // 1. Show Container
         document.getElementById('scanContainer').classList.remove('hidden');
         document.getElementById('btnOpenScanner').classList.add('hidden');
 
-        // 2. Ensure DOM Element exists (Rendered by ui.js)
-        if(!document.getElementById('reader')) return alert("Scanner error: DOM missing");
+        if(!document.getElementById('reader')) return alert("Scanner DOM error. Try refreshing.");
 
-        // 3. Init Library
-        // If Html5QrcodeScanner is undefined, make sure the library is loaded in index.html
         try {
-            this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            
-            // 4. Start Render
+            // Re-init scanner if needed
+            if (!this.state.scanner) {
+                this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            }
             this.state.scanner.render(
                 (decodedText) => this.handleScanSuccess(decodedText),
-                (error) => { /* Ignore frame errors */ }
+                (error) => { /* ignore */ }
             );
         } catch (e) {
-            alert("Camera init failed. Ensure you are on HTTPS or localhost.");
+            alert("Camera failed. Check permissions.");
         }
     },
 
@@ -213,9 +231,12 @@ const app = {
         try {
             const data = await api.scanQR(this.state.currentUser.id, qrString);
             alert(data.message);
-            // Immediate update
-            if (data.message.includes("started")) this.state.activeSession.status = 'active';
-            if (data.message.includes("ended")) this.state.activeSession.status = 'completed';
+            if (data.message.includes("Started") || data.message.includes("Active")) {
+                this.state.activeSession.status = 'active';
+            }
+            if (data.message.includes("Ended")) {
+                this.state.activeSession.status = 'completed';
+            }
             ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
         } catch (e) { alert("Scan Failed: " + e.message); }
     },
@@ -259,7 +280,7 @@ const app = {
         this.switchTab('upcoming');
     },
 
-    // --- Helpers (Date, Availability, etc) ---
+    // --- Booking Flow & Stripe ---
     openDateModal(day, time) {
         this.state.tempSelectedDates = [...this.state.selectedSlots];
         const dates = ui.getNextFourDates(day, time);
@@ -312,34 +333,57 @@ const app = {
         document.getElementById('payRate').innerText = `$${rate}`;
         document.getElementById('paySubtotal').innerText = `$${subtotal.toFixed(2)}`;
         document.getElementById('payTotal').innerText = `$${(subtotal+5).toFixed(2)}`;
-    },
 
-    async submitBooking() {
-        try {
-            // 1. Create Booking
-            const booking = await api.createBooking({
-                mentor_id: this.state.selectedMentor.id,
-                mentee_id: this.state.currentUser.id,
-                datetime_slots: this.state.selectedSlots
-            });
-
-            // 2. Generate a Unique "Stripe-like" Payment ID
-            // In a real app, Stripe provides this. Here we simulate it securely.
-            const uniquePaymentId = "pi_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
-
-            // 3. Confirm Payment with this ID
-            await api.confirmPayment({
-                session_ids: booking.booking_ids,
-                payment_method_id: uniquePaymentId // <-- This is now the "Meaningful String"
-            });
-
-            alert("Payment Authorized! ID: " + uniquePaymentId);
-            this.switchTab('find');
-        } catch (e) { 
-            alert("Transaction failed: " + e.message); 
+        // Mount Stripe Element now that the div is visible
+        if (this.state.cardElement) {
+            this.state.cardElement.mount('#card-element');
         }
     },
 
+    async submitBooking() {
+        const btn = document.getElementById('btnSubmitPayment');
+        btn.innerText = "Processing...";
+        btn.disabled = true;
+
+        try {
+            // 1. Create Payment Method via Stripe.js
+            const {paymentMethod, error} = await this.state.stripe.createPaymentMethod({
+                type: 'card',
+                card: this.state.cardElement,
+            });
+
+            if (error) {
+                document.getElementById('card-errors').textContent = error.message;
+                throw new Error(error.message);
+            }
+
+            // 2. Send to Backend
+            const res = await api.createBookingIntent({
+                mentor_id: this.state.selectedMentor.id,
+                mentee_id: this.state.currentUser.id,
+                datetime_slots: this.state.selectedSlots,
+                payment_method_id: paymentMethod.id
+            });
+
+            // 3. Handle 3DS Action if needed (Manual Capture usually doesn't need immediate action unless triggered)
+            // But we check just in case.
+            if (res.error) {
+                // If backend returns a Stripe error
+                throw new Error(res.error);
+            }
+
+            alert("Payment Authorized! Booking Confirmed.");
+            this.switchTab('find');
+
+        } catch (e) {
+            alert("Booking Error: " + e.message);
+        } finally {
+            btn.innerText = "AUTHORIZE PAYMENT & BOOK";
+            btn.disabled = false;
+        }
+    },
+
+    // --- Availability & Requests ---
     showAvailabilityEditor() {
         if (this.state.currentUser.weekly_availability) {
             this.state.localAvailability = typeof this.state.currentUser.weekly_availability === 'string'
@@ -397,6 +441,7 @@ const app = {
         } catch (e) { alert("Action failed"); }
     },
 
+    // --- Auth Helpers ---
     openModal(mode, role = 'learner') {
         document.getElementById('authModal').classList.replace('hidden', 'flex');
         const loginSec = document.getElementById('loginSection');
@@ -463,6 +508,8 @@ const app = {
 };
 
 window.onload = () => app.init();
+const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) => localStorage.setItem(k, JSON.stringify(v)), remove: (k) => localStorage.removeItem(k) };
+
 
 // const app = {
 //     state: {
@@ -474,11 +521,11 @@ window.onload = () => app.init();
 //         tempSelectedDates: [],
 //         currentRating: 0,
 //         localAvailability: { mon: [], tue: [], wed: [], thu: [], fri: [], sat: [], sun: [] },
-//         // Reg Form State
 //         userRole: 'learner',
 //         hasCar: false,
 //         currentStep: 1,
-//         totalSteps: 4
+//         totalSteps: 4,
+//         scanner: null // Track scanner instance
 //     },
 
 //     init() {
@@ -487,7 +534,7 @@ window.onload = () => app.init();
 //         if (user) this.showDashboard(user);
 //     },
 
-//     // --- Auth ---
+//     // --- Auth & Registration ---
 //     async loginAction() {
 //         const email = document.getElementById('loginEmail').value;
 //         const pass = document.getElementById('loginPass').value;
@@ -553,10 +600,16 @@ window.onload = () => app.init();
 //     },
 
 //     switchTab(tabId) {
+//         // Stop any active scanner or poller when switching tabs
+//         if (this.state.scanner) {
+//             this.state.scanner.clear();
+//             this.state.scanner = null;
+//         }
 //         if (tabId !== 'session' && this.state.sessionPoller) {
 //             clearInterval(this.state.sessionPoller);
 //             this.state.sessionPoller = null;
 //         }
+        
 //         ui.switchTab(tabId, this.state.currentUser?.role);
 
 //         // Load Data
@@ -579,10 +632,8 @@ window.onload = () => app.init();
 //         try {
 //             const data = await api.getMentorDetails(id);
 //             this.state.selectedMentor = data;
-            
 //             document.getElementById('viewFind').classList.add('hidden');
 //             document.getElementById('viewProfile').classList.remove('hidden');
-            
 //             this.state.selectedSlots = [];
 //             document.getElementById('selectedCount').innerText = "0";
 //             ui.renderProfile(data, data.availability, []);
@@ -597,12 +648,23 @@ window.onload = () => app.init();
 //         } catch (e) { document.getElementById('upcomingGrid').innerHTML = "Error loading schedule."; }
 //     },
 
-//     enterSessionMode(sessionId) {
+//     async enterSessionMode(sessionId) {
 //         if (!sessionId) return;
 //         document.getElementById('tabSession').classList.remove('hidden');
-//         this.state.activeSession = { id: sessionId, status: 'scheduled' };
         
-//         this.syncSessionStatus();
+//         // 1. Fetch Latest Status FIRST (Fixes QR disappearing bug)
+//         try {
+//             const fresh = await api.getSessionStatus(sessionId);
+//             this.state.activeSession = fresh;
+//         } catch (e) {
+//             this.state.activeSession = { id: sessionId, status: 'scheduled' }; // Fallback
+//         }
+        
+//         // 2. Render UI
+//         ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
+        
+//         // 3. Start Polling
+//         if (this.state.sessionPoller) clearInterval(this.state.sessionPoller);
 //         this.state.sessionPoller = setInterval(() => this.syncSessionStatus(), 5000);
         
 //         this.switchTab('session');
@@ -612,10 +674,11 @@ window.onload = () => app.init();
 //         if (!this.state.activeSession) return;
 //         try {
 //             const fresh = await api.getSessionStatus(this.state.activeSession.id);
+//             // Only re-render if status CHANGED (Prevents UI reset)
 //             if (fresh.status !== this.state.activeSession.status) {
 //                 this.state.activeSession = fresh;
+//                 ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
 //             }
-//             ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
 //         } catch (e) { console.log(e); }
 //     },
 
@@ -630,15 +693,49 @@ window.onload = () => app.init();
 //         } catch (e) { alert("Error: " + e.message); }
 //     },
 
-//     async processScan() {
-//         const token = document.getElementById('scanInput').value;
+//     // --- CAMERA LOGIC ---
+//     startScanner() {
+//         // 1. Show Container
+//         document.getElementById('scanContainer').classList.remove('hidden');
+//         document.getElementById('btnOpenScanner').classList.add('hidden');
+
+//         // 2. Ensure DOM Element exists (Rendered by ui.js)
+//         if(!document.getElementById('reader')) return alert("Scanner error: DOM missing");
+
+//         // 3. Init Library
+//         // If Html5QrcodeScanner is undefined, make sure the library is loaded in index.html
 //         try {
-//             const data = await api.scanQR(this.state.currentUser.id, token);
+//             this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            
+//             // 4. Start Render
+//             this.state.scanner.render(
+//                 (decodedText) => this.handleScanSuccess(decodedText),
+//                 (error) => { /* Ignore frame errors */ }
+//             );
+//         } catch (e) {
+//             alert("Camera init failed. Ensure you are on HTTPS or localhost.");
+//         }
+//     },
+
+//     async handleScanSuccess(qrString) {
+//         if (this.state.scanner) {
+//             this.state.scanner.clear();
+//             this.state.scanner = null;
+//         }
+
+//         try {
+//             const data = await api.scanQR(this.state.currentUser.id, qrString);
 //             alert(data.message);
+//             // Immediate update
 //             if (data.message.includes("started")) this.state.activeSession.status = 'active';
 //             if (data.message.includes("ended")) this.state.activeSession.status = 'completed';
 //             ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
 //         } catch (e) { alert("Scan Failed: " + e.message); }
+//     },
+
+//     async processManualScan() {
+//         const token = document.getElementById('scanInput').value;
+//         this.handleScanSuccess(token);
 //     },
 
 //     async saveEvaluation() {
@@ -665,13 +762,17 @@ window.onload = () => app.init();
 //     },
 
 //     exitSession() {
+//         if (this.state.scanner) { 
+//             this.state.scanner.clear(); 
+//             this.state.scanner = null; 
+//         }
 //         clearInterval(this.state.sessionPoller);
 //         this.state.activeSession = null;
 //         document.getElementById('tabSession').classList.add('hidden');
 //         this.switchTab('upcoming');
 //     },
 
-//     // --- Booking Helpers ---
+//     // --- Helpers (Date, Availability, etc) ---
 //     openDateModal(day, time) {
 //         this.state.tempSelectedDates = [...this.state.selectedSlots];
 //         const dates = ui.getNextFourDates(day, time);
@@ -728,21 +829,30 @@ window.onload = () => app.init();
 
 //     async submitBooking() {
 //         try {
+//             // 1. Create Booking
 //             const booking = await api.createBooking({
 //                 mentor_id: this.state.selectedMentor.id,
 //                 mentee_id: this.state.currentUser.id,
 //                 datetime_slots: this.state.selectedSlots
 //             });
+
+//             // 2. Generate a Unique "Stripe-like" Payment ID
+//             // In a real app, Stripe provides this. Here we simulate it securely.
+//             const uniquePaymentId = "pi_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
+
+//             // 3. Confirm Payment with this ID
 //             await api.confirmPayment({
 //                 session_ids: booking.booking_ids,
-//                 payment_method_id: "pm_card_demo"
+//                 payment_method_id: uniquePaymentId // <-- This is now the "Meaningful String"
 //             });
-//             alert("Payment Successful!");
+
+//             alert("Payment Authorized! ID: " + uniquePaymentId);
 //             this.switchTab('find');
-//         } catch (e) { alert("Transaction failed: " + e.message); }
+//         } catch (e) { 
+//             alert("Transaction failed: " + e.message); 
+//         }
 //     },
 
-//     // --- Availability ---
 //     showAvailabilityEditor() {
 //         if (this.state.currentUser.weekly_availability) {
 //             this.state.localAvailability = typeof this.state.currentUser.weekly_availability === 'string'
@@ -786,7 +896,20 @@ window.onload = () => app.init();
 //         } catch (e) { alert("Save failed"); }
 //     },
 
-//     // --- Misc UI Handlers ---
+//     async loadRequests() {
+//         try {
+//             const data = await api.getRequests(this.state.currentUser.id);
+//             ui.renderRequests(data);
+//         } catch (e) { }
+//     },
+
+//     async handleRequest(sid, action) {
+//         try {
+//             await api.handleRequestAction(sid, this.state.currentUser.id, action);
+//             this.loadRequests();
+//         } catch (e) { alert("Action failed"); }
+//     },
+
 //     openModal(mode, role = 'learner') {
 //         document.getElementById('authModal').classList.replace('hidden', 'flex');
 //         const loginSec = document.getElementById('loginSection');
@@ -846,25 +969,10 @@ window.onload = () => app.init();
 //         document.querySelectorAll('.star-rating').forEach((s, i) => s.classList.toggle('active', i < n));
 //     },
 
-//     async loadRequests() {
-//         try {
-//             const data = await api.getRequests(this.state.currentUser.id);
-//             ui.renderRequests(data);
-//         } catch (e) { }
-//     },
-
-//     async handleRequest(sid, action) {
-//         try {
-//             await api.handleRequestAction(sid, this.state.currentUser.id, action);
-//             this.loadRequests();
-//         } catch (e) { alert("Action failed"); }
-//     },
-
 //     closeModal() { document.getElementById('authModal').classList.replace('flex', 'hidden'); },
 //     closeDateModal() { document.getElementById('dateModal').classList.replace('flex', 'hidden'); },
 //     logout() { storage.remove('lynx_user'); window.location.reload(); },
-//     goHome() { window.location.reload(); },
-//     openScannerUI() { document.getElementById('scanContainer').classList.remove('hidden'); document.getElementById('btnOpenScanner').classList.add('hidden'); }
+//     goHome() { window.location.reload(); }
 // };
 
 // window.onload = () => app.init();
