@@ -20,15 +20,25 @@ const app = {
     init() {
         setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 1000);
         const user = storage.get('lynx_user');
-        if (user) this.showDashboard(user);
+        if (user) {
+            this.showDashboard(user);
+            // Background check for updated stripe status
+            if (user.role === 'mentor' && !user.stripe_onboarding_complete) {
+                api.checkStripeStatus(user.id).then(status => {
+                    if (status.details_submitted) {
+                        user.stripe_onboarding_complete = true;
+                        storage.set('lynx_user', user);
+                        this.state.currentUser = user;
+                    }
+                });
+            }
+        }
         this.initStripe();
     },
 
-    // --- STRIPE INIT ---
     initStripe() {
-        // Use your Stripe Test Public Key here
         if (window.Stripe) {
-            this.state.stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // Replace if you have your own
+            this.state.stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // REPLACE WITH YOUR KEY
             const elements = this.state.stripe.elements();
             this.state.cardElement = elements.create('card', {
                 style: {
@@ -42,13 +52,39 @@ const app = {
                     invalid: { color: "#fa755a", iconColor: "#fa755a" }
                 }
             });
-            // We mount this when the payment view opens, so we check existence
-            // Actually, Stripe Elements needs the DOM to exist. 
-            // We'll mount it inside proceedToPayment to ensure the div is visible.
         }
     },
 
-    // --- Auth & Registration ---
+    // --- PAYOUTS & HELPING MODE ---
+    async startStripeOnboarding() {
+        try {
+            const data = await api.createOnboardingLink(this.state.currentUser.id);
+            window.location.href = data.url; // Redirect to Stripe
+        } catch (e) {
+            alert("Error: " + e.message);
+        }
+    },
+
+    async activateHelpingMode() {
+        if (!confirm("Are you sure? Switching to Helping Mode sets your rate to $0 (Volunteer). You can change this later in settings.")) return;
+        
+        try {
+            // Update rate to 0
+            await api.updateUser(this.state.currentUser.id, { hourly_rate: 0 });
+            
+            // Update local state
+            this.state.currentUser.hourly_rate = 0;
+            storage.set('lynx_user', this.state.currentUser);
+            
+            // Refresh View
+            alert("You are now a Volunteer! Helping Mode Active.");
+            this.loadRequests(); 
+        } catch (e) {
+            alert("Could not update profile. (Backend endpoint for update might be missing)");
+        }
+    },
+
+    // --- Auth ---
     async loginAction() {
         const email = document.getElementById('loginEmail').value;
         const pass = document.getElementById('loginPass').value;
@@ -130,7 +166,15 @@ const app = {
         if (tabId === 'avail') this.showAvailabilityEditor();
     },
 
-    // --- Search & Booking ---
+    async loadRequests() {
+        try {
+            const data = await api.getRequests(this.state.currentUser.id);
+            // Pass Current User to renderer so it can check onboarding status
+            ui.renderRequests(data, this.state.currentUser);
+        } catch (e) { }
+    },
+
+    // ... (Keep existing loadMentors, openMentorProfile, loadUpcoming, enterSessionMode, etc.) ...
     async loadMentors() {
         const zip = document.getElementById('filterZip').value;
         const rate = document.getElementById('filterRate').value;
@@ -152,7 +196,6 @@ const app = {
         } catch (e) { alert(e.message); }
     },
 
-    // --- Session Logic ---
     async loadUpcoming() {
         try {
             const data = await api.getUpcoming(this.state.currentUser.id, this.state.currentUser.role);
@@ -163,19 +206,15 @@ const app = {
     async enterSessionMode(sessionId) {
         if (!sessionId) return;
         document.getElementById('tabSession').classList.remove('hidden');
-        
         try {
             const fresh = await api.getSessionStatus(sessionId);
             this.state.activeSession = fresh;
         } catch (e) {
             this.state.activeSession = { id: sessionId, status: 'scheduled' }; 
         }
-        
         ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
-        
         if (this.state.sessionPoller) clearInterval(this.state.sessionPoller);
         this.state.sessionPoller = setInterval(() => this.syncSessionStatus(), 5000);
-        
         this.switchTab('session');
     },
 
@@ -201,25 +240,19 @@ const app = {
         } catch (e) { alert("Error: " + e.message); }
     },
 
-    // --- CAMERA LOGIC ---
     startScanner() {
         document.getElementById('scanContainer').classList.remove('hidden');
         document.getElementById('btnOpenScanner').classList.add('hidden');
-
         if(!document.getElementById('reader')) return alert("Scanner DOM error. Try refreshing.");
-
         try {
-            // Re-init scanner if needed
             if (!this.state.scanner) {
                 this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
             }
             this.state.scanner.render(
                 (decodedText) => this.handleScanSuccess(decodedText),
-                (error) => { /* ignore */ }
+                (error) => { }
             );
-        } catch (e) {
-            alert("Camera failed. Check permissions.");
-        }
+        } catch (e) { alert("Camera failed. Check permissions."); }
     },
 
     async handleScanSuccess(qrString) {
@@ -227,16 +260,11 @@ const app = {
             this.state.scanner.clear();
             this.state.scanner = null;
         }
-
         try {
             const data = await api.scanQR(this.state.currentUser.id, qrString);
             alert(data.message);
-            if (data.message.includes("Started") || data.message.includes("Active")) {
-                this.state.activeSession.status = 'active';
-            }
-            if (data.message.includes("Ended")) {
-                this.state.activeSession.status = 'completed';
-            }
+            if (data.message.includes("Started") || data.message.includes("Active")) this.state.activeSession.status = 'active';
+            if (data.message.includes("Ended")) this.state.activeSession.status = 'completed';
             ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
         } catch (e) { alert("Scan Failed: " + e.message); }
     },
@@ -280,7 +308,6 @@ const app = {
         this.switchTab('upcoming');
     },
 
-    // --- Booking Flow & Stripe ---
     openDateModal(day, time) {
         this.state.tempSelectedDates = [...this.state.selectedSlots];
         const dates = ui.getNextFourDates(day, time);
@@ -334,7 +361,6 @@ const app = {
         document.getElementById('paySubtotal').innerText = `$${subtotal.toFixed(2)}`;
         document.getElementById('payTotal').innerText = `$${(subtotal+5).toFixed(2)}`;
 
-        // Mount Stripe Element now that the div is visible
         if (this.state.cardElement) {
             this.state.cardElement.mount('#card-element');
         }
@@ -346,33 +372,31 @@ const app = {
         btn.disabled = true;
 
         try {
-            // 1. Create Payment Method via Stripe.js
-            const {paymentMethod, error} = await this.state.stripe.createPaymentMethod({
-                type: 'card',
-                card: this.state.cardElement,
-            });
+            let paymentMethodId = "pm_card_us"; // Default for helping mode
 
-            if (error) {
-                document.getElementById('card-errors').textContent = error.message;
-                throw new Error(error.message);
+            // Only use Stripe if rate > 0
+            if (this.state.selectedMentor.hourly_rate > 0) {
+                 const {paymentMethod, error} = await this.state.stripe.createPaymentMethod({
+                    type: 'card',
+                    card: this.state.cardElement,
+                });
+                if (error) {
+                    document.getElementById('card-errors').textContent = error.message;
+                    throw new Error(error.message);
+                }
+                paymentMethodId = paymentMethod.id;
             }
 
-            // 2. Send to Backend
             const res = await api.createBookingIntent({
                 mentor_id: this.state.selectedMentor.id,
                 mentee_id: this.state.currentUser.id,
                 datetime_slots: this.state.selectedSlots,
-                payment_method_id: paymentMethod.id
+                payment_method_id: paymentMethodId
             });
 
-            // 3. Handle 3DS Action if needed (Manual Capture usually doesn't need immediate action unless triggered)
-            // But we check just in case.
-            if (res.error) {
-                // If backend returns a Stripe error
-                throw new Error(res.error);
-            }
+            if (res.error) throw new Error(res.error);
 
-            alert("Payment Authorized! Booking Confirmed.");
+            alert("Booking Confirmed!");
             this.switchTab('find');
 
         } catch (e) {
@@ -383,7 +407,7 @@ const app = {
         }
     },
 
-    // --- Availability & Requests ---
+    // --- Availability, Requests, Helpers ---
     showAvailabilityEditor() {
         if (this.state.currentUser.weekly_availability) {
             this.state.localAvailability = typeof this.state.currentUser.weekly_availability === 'string'
@@ -427,13 +451,6 @@ const app = {
         } catch (e) { alert("Save failed"); }
     },
 
-    async loadRequests() {
-        try {
-            const data = await api.getRequests(this.state.currentUser.id);
-            ui.renderRequests(data);
-        } catch (e) { }
-    },
-
     async handleRequest(sid, action) {
         try {
             await api.handleRequestAction(sid, this.state.currentUser.id, action);
@@ -441,7 +458,6 @@ const app = {
         } catch (e) { alert("Action failed"); }
     },
 
-    // --- Auth Helpers ---
     openModal(mode, role = 'learner') {
         document.getElementById('authModal').classList.replace('hidden', 'flex');
         const loginSec = document.getElementById('loginSection');
@@ -510,7 +526,6 @@ const app = {
 window.onload = () => app.init();
 const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) => localStorage.setItem(k, JSON.stringify(v)), remove: (k) => localStorage.removeItem(k) };
 
-
 // const app = {
 //     state: {
 //         currentUser: null,
@@ -525,13 +540,40 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         hasCar: false,
 //         currentStep: 1,
 //         totalSteps: 4,
-//         scanner: null // Track scanner instance
+//         scanner: null,
+//         stripe: null,
+//         cardElement: null
 //     },
 
 //     init() {
 //         setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 1000);
 //         const user = storage.get('lynx_user');
 //         if (user) this.showDashboard(user);
+//         this.initStripe();
+//     },
+
+//     // --- STRIPE INIT ---
+//     initStripe() {
+//         // Use your Stripe Test Public Key here
+//         if (window.Stripe) {
+//             this.state.stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // Replace if you have your own
+//             const elements = this.state.stripe.elements();
+//             this.state.cardElement = elements.create('card', {
+//                 style: {
+//                     base: {
+//                         color: "#ffffff",
+//                         fontFamily: '"Inter", sans-serif',
+//                         fontSmoothing: "antialiased",
+//                         fontSize: "16px",
+//                         "::placeholder": { color: "#aab7c4" }
+//                     },
+//                     invalid: { color: "#fa755a", iconColor: "#fa755a" }
+//                 }
+//             });
+//             // We mount this when the payment view opens, so we check existence
+//             // Actually, Stripe Elements needs the DOM to exist. 
+//             // We'll mount it inside proceedToPayment to ensure the div is visible.
+//         }
 //     },
 
 //     // --- Auth & Registration ---
@@ -600,7 +642,6 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //     },
 
 //     switchTab(tabId) {
-//         // Stop any active scanner or poller when switching tabs
 //         if (this.state.scanner) {
 //             this.state.scanner.clear();
 //             this.state.scanner = null;
@@ -612,7 +653,6 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
         
 //         ui.switchTab(tabId, this.state.currentUser?.role);
 
-//         // Load Data
 //         if (tabId === 'requests') this.loadRequests();
 //         if (tabId === 'upcoming') this.loadUpcoming();
 //         if (tabId === 'avail') this.showAvailabilityEditor();
@@ -652,18 +692,15 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         if (!sessionId) return;
 //         document.getElementById('tabSession').classList.remove('hidden');
         
-//         // 1. Fetch Latest Status FIRST (Fixes QR disappearing bug)
 //         try {
 //             const fresh = await api.getSessionStatus(sessionId);
 //             this.state.activeSession = fresh;
 //         } catch (e) {
-//             this.state.activeSession = { id: sessionId, status: 'scheduled' }; // Fallback
+//             this.state.activeSession = { id: sessionId, status: 'scheduled' }; 
 //         }
         
-//         // 2. Render UI
 //         ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
         
-//         // 3. Start Polling
 //         if (this.state.sessionPoller) clearInterval(this.state.sessionPoller);
 //         this.state.sessionPoller = setInterval(() => this.syncSessionStatus(), 5000);
         
@@ -674,7 +711,6 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         if (!this.state.activeSession) return;
 //         try {
 //             const fresh = await api.getSessionStatus(this.state.activeSession.id);
-//             // Only re-render if status CHANGED (Prevents UI reset)
 //             if (fresh.status !== this.state.activeSession.status) {
 //                 this.state.activeSession = fresh;
 //                 ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
@@ -695,25 +731,22 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 
 //     // --- CAMERA LOGIC ---
 //     startScanner() {
-//         // 1. Show Container
 //         document.getElementById('scanContainer').classList.remove('hidden');
 //         document.getElementById('btnOpenScanner').classList.add('hidden');
 
-//         // 2. Ensure DOM Element exists (Rendered by ui.js)
-//         if(!document.getElementById('reader')) return alert("Scanner error: DOM missing");
+//         if(!document.getElementById('reader')) return alert("Scanner DOM error. Try refreshing.");
 
-//         // 3. Init Library
-//         // If Html5QrcodeScanner is undefined, make sure the library is loaded in index.html
 //         try {
-//             this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
-            
-//             // 4. Start Render
+//             // Re-init scanner if needed
+//             if (!this.state.scanner) {
+//                 this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+//             }
 //             this.state.scanner.render(
 //                 (decodedText) => this.handleScanSuccess(decodedText),
-//                 (error) => { /* Ignore frame errors */ }
+//                 (error) => { /* ignore */ }
 //             );
 //         } catch (e) {
-//             alert("Camera init failed. Ensure you are on HTTPS or localhost.");
+//             alert("Camera failed. Check permissions.");
 //         }
 //     },
 
@@ -726,9 +759,12 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         try {
 //             const data = await api.scanQR(this.state.currentUser.id, qrString);
 //             alert(data.message);
-//             // Immediate update
-//             if (data.message.includes("started")) this.state.activeSession.status = 'active';
-//             if (data.message.includes("ended")) this.state.activeSession.status = 'completed';
+//             if (data.message.includes("Started") || data.message.includes("Active")) {
+//                 this.state.activeSession.status = 'active';
+//             }
+//             if (data.message.includes("Ended")) {
+//                 this.state.activeSession.status = 'completed';
+//             }
 //             ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
 //         } catch (e) { alert("Scan Failed: " + e.message); }
 //     },
@@ -772,7 +808,7 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         this.switchTab('upcoming');
 //     },
 
-//     // --- Helpers (Date, Availability, etc) ---
+//     // --- Booking Flow & Stripe ---
 //     openDateModal(day, time) {
 //         this.state.tempSelectedDates = [...this.state.selectedSlots];
 //         const dates = ui.getNextFourDates(day, time);
@@ -825,34 +861,57 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         document.getElementById('payRate').innerText = `$${rate}`;
 //         document.getElementById('paySubtotal').innerText = `$${subtotal.toFixed(2)}`;
 //         document.getElementById('payTotal').innerText = `$${(subtotal+5).toFixed(2)}`;
-//     },
 
-//     async submitBooking() {
-//         try {
-//             // 1. Create Booking
-//             const booking = await api.createBooking({
-//                 mentor_id: this.state.selectedMentor.id,
-//                 mentee_id: this.state.currentUser.id,
-//                 datetime_slots: this.state.selectedSlots
-//             });
-
-//             // 2. Generate a Unique "Stripe-like" Payment ID
-//             // In a real app, Stripe provides this. Here we simulate it securely.
-//             const uniquePaymentId = "pi_" + Math.random().toString(36).substr(2, 9) + "_" + Date.now();
-
-//             // 3. Confirm Payment with this ID
-//             await api.confirmPayment({
-//                 session_ids: booking.booking_ids,
-//                 payment_method_id: uniquePaymentId // <-- This is now the "Meaningful String"
-//             });
-
-//             alert("Payment Authorized! ID: " + uniquePaymentId);
-//             this.switchTab('find');
-//         } catch (e) { 
-//             alert("Transaction failed: " + e.message); 
+//         // Mount Stripe Element now that the div is visible
+//         if (this.state.cardElement) {
+//             this.state.cardElement.mount('#card-element');
 //         }
 //     },
 
+//     async submitBooking() {
+//         const btn = document.getElementById('btnSubmitPayment');
+//         btn.innerText = "Processing...";
+//         btn.disabled = true;
+
+//         try {
+//             // 1. Create Payment Method via Stripe.js
+//             const {paymentMethod, error} = await this.state.stripe.createPaymentMethod({
+//                 type: 'card',
+//                 card: this.state.cardElement,
+//             });
+
+//             if (error) {
+//                 document.getElementById('card-errors').textContent = error.message;
+//                 throw new Error(error.message);
+//             }
+
+//             // 2. Send to Backend
+//             const res = await api.createBookingIntent({
+//                 mentor_id: this.state.selectedMentor.id,
+//                 mentee_id: this.state.currentUser.id,
+//                 datetime_slots: this.state.selectedSlots,
+//                 payment_method_id: paymentMethod.id
+//             });
+
+//             // 3. Handle 3DS Action if needed (Manual Capture usually doesn't need immediate action unless triggered)
+//             // But we check just in case.
+//             if (res.error) {
+//                 // If backend returns a Stripe error
+//                 throw new Error(res.error);
+//             }
+
+//             alert("Payment Authorized! Booking Confirmed.");
+//             this.switchTab('find');
+
+//         } catch (e) {
+//             alert("Booking Error: " + e.message);
+//         } finally {
+//             btn.innerText = "AUTHORIZE PAYMENT & BOOK";
+//             btn.disabled = false;
+//         }
+//     },
+
+//     // --- Availability & Requests ---
 //     showAvailabilityEditor() {
 //         if (this.state.currentUser.weekly_availability) {
 //             this.state.localAvailability = typeof this.state.currentUser.weekly_availability === 'string'
@@ -910,6 +969,7 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 //         } catch (e) { alert("Action failed"); }
 //     },
 
+//     // --- Auth Helpers ---
 //     openModal(mode, role = 'learner') {
 //         document.getElementById('authModal').classList.replace('hidden', 'flex');
 //         const loginSec = document.getElementById('loginSection');
@@ -976,3 +1036,5 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 // };
 
 // window.onload = () => app.init();
+// const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) => localStorage.setItem(k, JSON.stringify(v)), remove: (k) => localStorage.removeItem(k) };
+
