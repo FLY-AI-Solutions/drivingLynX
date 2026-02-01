@@ -12,7 +12,7 @@ const app = {
         hasCar: false,
         currentStep: 1,
         totalSteps: 4,
-        scanner: null // New: Track scanner instance
+        scanner: null // Track scanner instance
     },
 
     init() {
@@ -21,7 +21,7 @@ const app = {
         if (user) this.showDashboard(user);
     },
 
-    // --- Auth & Registration (No Changes) ---
+    // --- Auth & Registration ---
     async loginAction() {
         const email = document.getElementById('loginEmail').value;
         const pass = document.getElementById('loginPass').value;
@@ -34,7 +34,6 @@ const app = {
     },
 
     async handleRegistration() {
-        // ... (Keep existing registration logic) ...
         const btn = document.getElementById('nextBtn');
         if (!document.getElementById('regConsent').checked) return alert("Agree to terms required");
         btn.innerText = "Processing...";
@@ -88,7 +87,7 @@ const app = {
     },
 
     switchTab(tabId) {
-        // Clean up scanner if switching away
+        // Stop any active scanner or poller when switching tabs
         if (this.state.scanner) {
             this.state.scanner.clear();
             this.state.scanner = null;
@@ -97,14 +96,16 @@ const app = {
             clearInterval(this.state.sessionPoller);
             this.state.sessionPoller = null;
         }
+        
         ui.switchTab(tabId, this.state.currentUser?.role);
 
+        // Load Data
         if (tabId === 'requests') this.loadRequests();
         if (tabId === 'upcoming') this.loadUpcoming();
         if (tabId === 'avail') this.showAvailabilityEditor();
     },
 
-    // --- Search & Booking (No Changes) ---
+    // --- Search & Booking ---
     async loadMentors() {
         const zip = document.getElementById('filterZip').value;
         const rate = document.getElementById('filterRate').value;
@@ -126,7 +127,7 @@ const app = {
         } catch (e) { alert(e.message); }
     },
 
-    // --- Session Logic (UPDATED) ---
+    // --- Session Logic ---
     async loadUpcoming() {
         try {
             const data = await api.getUpcoming(this.state.currentUser.id, this.state.currentUser.role);
@@ -134,17 +135,23 @@ const app = {
         } catch (e) { document.getElementById('upcomingGrid').innerHTML = "Error loading schedule."; }
     },
 
-    enterSessionMode(sessionId) {
+    async enterSessionMode(sessionId) {
         if (!sessionId) return;
         document.getElementById('tabSession').classList.remove('hidden');
         
-        // Initial Mock State
-        this.state.activeSession = { id: sessionId, status: 'scheduled' };
+        // 1. Fetch Latest Status FIRST (Fixes QR disappearing bug)
+        try {
+            const fresh = await api.getSessionStatus(sessionId);
+            this.state.activeSession = fresh;
+        } catch (e) {
+            this.state.activeSession = { id: sessionId, status: 'scheduled' }; // Fallback
+        }
         
-        // Force an immediate render
+        // 2. Render UI
         ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
-
-        // Start Polling
+        
+        // 3. Start Polling
+        if (this.state.sessionPoller) clearInterval(this.state.sessionPoller);
         this.state.sessionPoller = setInterval(() => this.syncSessionStatus(), 5000);
         
         this.switchTab('session');
@@ -154,9 +161,7 @@ const app = {
         if (!this.state.activeSession) return;
         try {
             const fresh = await api.getSessionStatus(this.state.activeSession.id);
-            
-            // FIX: Only re-render if the status CHANGED. 
-            // This prevents the QR code from disappearing every 5 seconds.
+            // Only re-render if status CHANGED (Prevents UI reset)
             if (fresh.status !== this.state.activeSession.status) {
                 this.state.activeSession = fresh;
                 ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
@@ -170,37 +175,36 @@ const app = {
             const canvas = document.getElementById('qrCanvas');
             canvas.innerHTML = "";
             new QRCode(canvas, { text: data.qr_string, width: 180, height: 180 });
-            
             document.getElementById('qrContainer').classList.remove('hidden');
             document.getElementById('btnGenerateQR').classList.add('hidden');
         } catch (e) { alert("Error: " + e.message); }
     },
 
-    // --- NEW: Real Camera Logic ---
+    // --- CAMERA LOGIC ---
     startScanner() {
-        // Show the container
+        // 1. Show Container
         document.getElementById('scanContainer').classList.remove('hidden');
         document.getElementById('btnOpenScanner').classList.add('hidden');
 
-        // Initialize HTML5 QR Code
-        // 'reader' is the ID of the div in ui.js where camera will show
-        this.state.scanner = new Html5QrcodeScanner(
-            "reader", { fps: 10, qrbox: 250 }
-        );
+        // 2. Ensure DOM Element exists (Rendered by ui.js)
+        if(!document.getElementById('reader')) return alert("Scanner error: DOM missing");
 
-        this.state.scanner.render(
-            (decodedText) => {
-                // Success Callback
-                this.handleScanSuccess(decodedText);
-            },
-            (errorMessage) => {
-                // Parse error, ignore mostly
-            }
-        );
+        // 3. Init Library
+        // If Html5QrcodeScanner is undefined, make sure the library is loaded in index.html
+        try {
+            this.state.scanner = new Html5QrcodeScanner("reader", { fps: 10, qrbox: 250 });
+            
+            // 4. Start Render
+            this.state.scanner.render(
+                (decodedText) => this.handleScanSuccess(decodedText),
+                (error) => { /* Ignore frame errors */ }
+            );
+        } catch (e) {
+            alert("Camera init failed. Ensure you are on HTTPS or localhost.");
+        }
     },
 
     async handleScanSuccess(qrString) {
-        // Stop scanning
         if (this.state.scanner) {
             this.state.scanner.clear();
             this.state.scanner = null;
@@ -209,27 +213,19 @@ const app = {
         try {
             const data = await api.scanQR(this.state.currentUser.id, qrString);
             alert(data.message);
-            
-            // Update State Immediately
+            // Immediate update
             if (data.message.includes("started")) this.state.activeSession.status = 'active';
             if (data.message.includes("ended")) this.state.activeSession.status = 'completed';
-            
             ui.renderSessionStatus(this.state.activeSession, this.state.currentUser.role);
-        } catch (e) { 
-            alert("Scan Failed: " + e.message);
-            // Re-open scanner if failed?
-            // this.startScanner(); 
-        }
+        } catch (e) { alert("Scan Failed: " + e.message); }
     },
 
-    // Fallback for manual entry if camera fails
     async processManualScan() {
         const token = document.getElementById('scanInput').value;
         this.handleScanSuccess(token);
     },
 
     async saveEvaluation() {
-        // ... (Keep existing evaluation logic) ...
         const data = {
             steering: document.getElementById('evalSteering').checked,
             mirrors: document.getElementById('evalMirrors').checked,
@@ -253,15 +249,17 @@ const app = {
     },
 
     exitSession() {
-        if(this.state.scanner) this.state.scanner.clear();
+        if (this.state.scanner) { 
+            this.state.scanner.clear(); 
+            this.state.scanner = null; 
+        }
         clearInterval(this.state.sessionPoller);
         this.state.activeSession = null;
         document.getElementById('tabSession').classList.add('hidden');
         this.switchTab('upcoming');
     },
-    
-    // ... Keep Booking Helpers, Availability, and Misc UI Handlers exactly as they were ...
-    // --- Booking Helpers ---
+
+    // --- Helpers (Date, Availability, etc) ---
     openDateModal(day, time) {
         this.state.tempSelectedDates = [...this.state.selectedSlots];
         const dates = ui.getNextFourDates(day, time);
@@ -332,7 +330,6 @@ const app = {
         } catch (e) { alert("Transaction failed: " + e.message); }
     },
 
-    // --- Availability ---
     showAvailabilityEditor() {
         if (this.state.currentUser.weekly_availability) {
             this.state.localAvailability = typeof this.state.currentUser.weekly_availability === 'string'
@@ -376,7 +373,20 @@ const app = {
         } catch (e) { alert("Save failed"); }
     },
 
-    // --- Misc UI Handlers ---
+    async loadRequests() {
+        try {
+            const data = await api.getRequests(this.state.currentUser.id);
+            ui.renderRequests(data);
+        } catch (e) { }
+    },
+
+    async handleRequest(sid, action) {
+        try {
+            await api.handleRequestAction(sid, this.state.currentUser.id, action);
+            this.loadRequests();
+        } catch (e) { alert("Action failed"); }
+    },
+
     openModal(mode, role = 'learner') {
         document.getElementById('authModal').classList.replace('hidden', 'flex');
         const loginSec = document.getElementById('loginSection');
@@ -434,20 +444,6 @@ const app = {
     setStar(n) {
         this.state.currentRating = n;
         document.querySelectorAll('.star-rating').forEach((s, i) => s.classList.toggle('active', i < n));
-    },
-
-    async loadRequests() {
-        try {
-            const data = await api.getRequests(this.state.currentUser.id);
-            ui.renderRequests(data);
-        } catch (e) { }
-    },
-
-    async handleRequest(sid, action) {
-        try {
-            await api.handleRequestAction(sid, this.state.currentUser.id, action);
-            this.loadRequests();
-        } catch (e) { alert("Action failed"); }
     },
 
     closeModal() { document.getElementById('authModal').classList.replace('flex', 'hidden'); },
