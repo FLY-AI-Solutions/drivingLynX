@@ -1,5 +1,4 @@
 const ui = {
-    // ... (Keep existing navigation and list renderers) ...
     // --- Navigation ---
     switchTab(tabId, userRole) {
         const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
@@ -11,13 +10,11 @@ const ui = {
             if (el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap';
         });
 
-        // Role Protection
         if (userRole !== 'mentor') {
             document.getElementById('tabRequests').classList.add('hidden');
             document.getElementById('tabAvail').classList.add('hidden');
         }
 
-        // Show View
         const map = {
             'find': 'viewFind', 'requests': 'viewRequests', 'session': 'viewSession',
             'avail': 'viewManageAvailability', 'upcoming': 'viewUpcoming'
@@ -68,10 +65,22 @@ const ui = {
 
     renderRequests(data) {
         const grid = document.getElementById('requestsGrid');
-        if (data.length === 0) { grid.innerHTML = "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; return; }
-        grid.innerHTML = data.map(r => `
+        
+        // FILTER: Only show pending items. Accepted ones are in 'Upcoming'.
+        const pending = data.filter(r => r.status === 'pending');
+
+        if (pending.length === 0) { 
+            grid.innerHTML = "<div class='text-gray-500 text-center py-8'>No pending requests.</div>"; 
+            return; 
+        }
+
+        grid.innerHTML = pending.map(r => `
             <div class="glass-panel p-4 flex justify-between items-center">
-                <div><h4 class="font-bold text-white">${r.mentee_name}</h4><p class="text-xs text-gray-400">Scheduled: ${new Date(r.scheduled).toLocaleString()}</p><span class="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">PENDING</span></div>
+                <div>
+                    <h4 class="font-bold text-white">${r.mentee_name}</h4>
+                    <p class="text-xs text-gray-400">Scheduled: ${new Date(r.scheduled).toLocaleString()}</p>
+                    <span class="text-[10px] bg-yellow-500/20 text-yellow-500 px-2 py-0.5 rounded">PENDING</span>
+                </div>
                 <div class="flex gap-2">
                     <button onclick="app.handleRequest(${r.session_id}, 'accept')" class="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg text-xs font-bold border border-green-500/50 hover:bg-green-500/30">ACCEPT</button>
                     <button onclick="app.handleRequest(${r.session_id}, 'reject')" class="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-xs font-bold border border-red-500/50 hover:bg-red-500/30">REJECT</button>
@@ -85,7 +94,6 @@ const ui = {
         document.getElementById('profileInitials').innerText = data.first_name[0];
         document.getElementById('profileCar').innerText = data.car || "Uses Student Car";
 
-        // Animated Bars
         const setBar = (id, val, max = 5) => {
             const pct = (val / max) * 100;
             setTimeout(() => document.getElementById(id).style.width = `${pct}%`, 100);
@@ -110,10 +118,9 @@ const ui = {
             days.forEach(day => {
                 const div = document.createElement('div');
                 const isAvail = avail[day] && avail[day].includes(time);
-                // Check if actively selected
                 const isActive = selectedSlots.some(s => {
                     const d = new Date(s);
-                    const dIndex = d.getDay(); // 0=Sun
+                    const dIndex = d.getDay(); 
                     const dName = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'][dIndex];
                     const dTime = d.toTimeString().substring(0, 5);
                     return dName === day && dTime === time;
@@ -128,7 +135,7 @@ const ui = {
         });
     },
 
-    // --- UPDATED Session Status Renderer ---
+    // --- Session Status Renderer ---
     renderSessionStatus(session, role) {
         const header = document.getElementById('sessionHeader');
         const instr = document.getElementById('sessionInstruction');
@@ -139,7 +146,7 @@ const ui = {
         const evalForm = document.getElementById('mentorEvalForm');
         const rateForm = document.getElementById('ratingForm');
 
-        // Reset visibility (Be careful NOT to hide scan container if it's already active)
+        // Reset visibility
         if (!scanContainer.innerHTML.includes("reader")) {
              scanContainer.classList.add('hidden');
         }
@@ -163,7 +170,7 @@ const ui = {
             } else {
                 instr.innerText = "Scan Mentor's Start Code.";
                 btnScan.classList.remove('hidden');
-                // Ensure scanner box has the reader div
+                btnScan.onclick = () => app.startScanner(); // FIX: Attach click handler
                 this.setupScannerDOM(scanContainer);
             }
         
@@ -176,6 +183,7 @@ const ui = {
                 instr.innerText = "Scan Student's QR to finish.";
                 evalForm.classList.remove('hidden');
                 btnScan.classList.remove('hidden');
+                btnScan.onclick = () => app.startScanner(); // FIX: Attach click handler
                 this.setupScannerDOM(scanContainer);
             } else {
                 instr.innerText = "Show this code to Mentor to finish.";
@@ -192,20 +200,16 @@ const ui = {
         }
     },
 
-    // Helper to inject the camera div
     setupScannerDOM(container) {
-        // Only inject if not already there to prevent re-init issues
         if (!document.getElementById('reader')) {
             container.innerHTML = `
                 <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden;"></div>
-                <button onclick="app.processManualScan()" class="text-xs text-gray-500 mt-2 underline">Use Manual Input</button>
-                <input type="text" id="scanInput" class="hidden lynx-input mt-2"> 
+                <button onclick="app.processManualScan()" class="text-xs text-gray-500 mt-2 underline block mx-auto">Use Manual Input</button>
+                <input type="text" id="scanInput" class="hidden lynx-input mt-2 text-center" placeholder="Paste Token"> 
             `;
-            // Note: Manual input can be toggled if camera fails
         }
     },
 
-    // --- Helpers ---
     formatDateNice: (d) => d.toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }),
     
     getNextFourDates(dayName, timeStr) {
@@ -227,7 +231,9 @@ const ui = {
     }
 };
 
+
 // const ui = {
+//     // ... (Keep existing navigation and list renderers) ...
 //     // --- Navigation ---
 //     switchTab(tabId, userRole) {
 //         const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
@@ -356,18 +362,22 @@ const ui = {
 //         });
 //     },
 
+//     // --- UPDATED Session Status Renderer ---
 //     renderSessionStatus(session, role) {
 //         const header = document.getElementById('sessionHeader');
 //         const instr = document.getElementById('sessionInstruction');
 //         const badge = document.getElementById('sessionStateBadge');
 //         const btnQR = document.getElementById('btnGenerateQR');
 //         const btnScan = document.getElementById('btnOpenScanner');
+//         const scanContainer = document.getElementById('scanContainer');
 //         const evalForm = document.getElementById('mentorEvalForm');
 //         const rateForm = document.getElementById('ratingForm');
 
-//         // Reset
+//         // Reset visibility (Be careful NOT to hide scan container if it's already active)
+//         if (!scanContainer.innerHTML.includes("reader")) {
+//              scanContainer.classList.add('hidden');
+//         }
 //         document.getElementById('qrContainer').classList.add('hidden');
-//         document.getElementById('scanContainer').classList.add('hidden');
 //         btnQR.classList.add('hidden');
 //         btnScan.classList.add('hidden');
 //         evalForm.classList.add('hidden');
@@ -375,34 +385,57 @@ const ui = {
 
 //         badge.innerText = session.status.toUpperCase();
 
+//         // 1. Scheduled / Accepted State
 //         if (session.status === 'accepted' || session.status === 'scheduled') {
 //             badge.className = "px-2 py-1 rounded bg-yellow-500/20 text-yellow-500 text-[10px] font-bold";
 //             header.innerText = "Start Session";
+            
 //             if (role === 'mentor') {
-//                 instr.innerText = "Generate the Secure Start Code and show it to your student.";
+//                 instr.innerText = "Generate Start Code for student.";
 //                 btnQR.classList.remove('hidden');
 //                 btnQR.innerText = "GENERATE START CODE";
 //             } else {
-//                 instr.innerText = "Ask your mentor for the Start Code and scan it here.";
+//                 instr.innerText = "Scan Mentor's Start Code.";
 //                 btnScan.classList.remove('hidden');
+//                 // Ensure scanner box has the reader div
+//                 this.setupScannerDOM(scanContainer);
 //             }
+        
+//         // 2. Active State
 //         } else if (session.status === 'active') {
 //             badge.className = "px-2 py-1 rounded bg-green-500/20 text-green-500 text-[10px] font-bold";
 //             header.innerText = "Driving in Progress";
+            
 //             if (role === 'mentor') {
-//                 instr.innerText = "Track student progress below. Scan Student's QR to finish.";
+//                 instr.innerText = "Scan Student's QR to finish.";
 //                 evalForm.classList.remove('hidden');
 //                 btnScan.classList.remove('hidden');
+//                 this.setupScannerDOM(scanContainer);
 //             } else {
-//                 instr.innerText = "Focus on the road! Show this code to mentor when finished.";
+//                 instr.innerText = "Show this code to Mentor to finish.";
 //                 btnQR.classList.remove('hidden');
 //                 btnQR.innerText = "GENERATE FINISH CODE";
 //             }
+
+//         // 3. Completed State
 //         } else if (session.status === 'completed') {
 //             badge.className = "px-2 py-1 rounded bg-blue-500/20 text-blue-500 text-[10px] font-bold";
 //             header.innerText = "Session Completed";
-//             instr.innerText = "Please rate your partner to finalize.";
+//             instr.innerText = "Please rate your partner.";
 //             rateForm.classList.remove('hidden');
+//         }
+//     },
+
+//     // Helper to inject the camera div
+//     setupScannerDOM(container) {
+//         // Only inject if not already there to prevent re-init issues
+//         if (!document.getElementById('reader')) {
+//             container.innerHTML = `
+//                 <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden;"></div>
+//                 <button onclick="app.processManualScan()" class="text-xs text-gray-500 mt-2 underline">Use Manual Input</button>
+//                 <input type="text" id="scanInput" class="hidden lynx-input mt-2"> 
+//             `;
+//             // Note: Manual input can be toggled if camera fails
 //         }
 //     },
 
@@ -427,3 +460,4 @@ const ui = {
 //         return dates;
 //     }
 // };
+
