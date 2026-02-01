@@ -22,6 +22,21 @@ const api = {
         return res.json();
     },
 
+    // --- STRIPE CONNECT (NEW) ---
+    async createOnboardingLink(userId) {
+        const res = await fetch(`${API_URL}/stripe/onboard?current_user_id=${userId}`, {
+            method: 'POST'
+        });
+        if (!res.ok) throw new Error("Could not create onboarding link.");
+        return res.json();
+    },
+    
+    // Check if onboarding is done (for dashboard reload)
+    async checkStripeStatus(userId) {
+        const res = await fetch(`${API_URL}/stripe/status/${userId}`);
+        return res.json();
+    },
+
     // --- Search & Profiles ---
     async getMentors(zip, rate) {
         let url =(`${API_URL}/mentors?`);
@@ -37,6 +52,24 @@ const api = {
         return res.json();
     },
 
+    // --- User Profile Update (For Helping Mode) ---
+    async updateUser(userId, data) {
+        // Note: You need to implement this endpoint in backend or reuse availability
+        // For now, we reuse availability endpoint if it supports partial updates, 
+        // OR we create a specific one. 
+        // Assuming /api/users/{id} PATCH exists or similar.
+        // Since backend might not have generic update, we'll try a specific endpoint pattern
+        // or you might need to add it to backend: @app.patch("/api/users/{user_id}")
+        
+        const res = await fetch(`${API_URL}/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+        });
+        if (!res.ok) throw new Error("Failed to update profile");
+        return res.json();
+    },
+
     // --- Scheduling & Payments ---
     async getUpcoming(userId, role) {
         const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${userId}&role=${role}`);
@@ -48,7 +81,6 @@ const api = {
         return res.json();
     },
 
-    // NEW: Real Stripe Flow
     async createBookingIntent(payload) {
         const res = await fetch(`${API_URL}/bookings/create_intent`, {
             method: 'POST',
@@ -121,7 +153,6 @@ const api = {
     }
 };
 
-
 // const API_URL = "https://jerin-api.flyai.online/x003/api";
 
 // const api = {
@@ -161,49 +192,50 @@ const api = {
 //         return res.json();
 //     },
 
-//     // --- Scheduling ---
+//     // --- Scheduling & Payments ---
 //     async getUpcoming(userId, role) {
 //         const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${userId}&role=${role}`);
 //         return res.json();
 //     },
 
-//     async createBooking(payload) {
-//         const res = await fetch(`${API_URL}/bookings`, {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify(payload)
-//         });
-//         if (!res.ok) throw new Error("Booking failed");
+//     async getRequests(userId) {
+//         const res = await fetch(`${API_URL}/requests/${userId}`);
 //         return res.json();
 //     },
 
-//     async confirmPayment(payload) {
-//         return fetch(`${API_URL}/payment/confirm`, {
+//     // NEW: Real Stripe Flow
+//     async createBookingIntent(payload) {
+//         const res = await fetch(`${API_URL}/bookings/create_intent`, {
 //             method: 'POST',
 //             headers: { 'Content-Type': 'application/json' },
 //             body: JSON.stringify(payload)
 //         });
+//         if (!res.ok) {
+//             const err = await res.json();
+//             throw new Error(err.detail || "Booking failed");
+//         }
+//         return res.json();
 //     },
 
-//     // --- Availability ---
-//     async updateAvailability(userId, availability) {
-//         return fetch(`${API_URL}/availability/update`, {
+//     async handleRequestAction(sessionId, mentorId, action) {
+//         const res = await fetch(`${API_URL}/bookings/action`, {
 //             method: 'POST',
 //             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify({ user_id: userId, availability })
+//             body: JSON.stringify({ session_id: sessionId, mentor_id: mentorId, action: action })
 //         });
+//         if (!res.ok) throw new Error("Action failed");
+//         return res.json();
 //     },
 
 //     // --- Session & QR ---
 //     async getSessionStatus(sessionId) {
 //         const res = await fetch(`${API_URL}/sessions/${sessionId}`);
-//         if(res.ok) return res.json();
-//         throw new Error("Session fetch failed");
+//         return res.json();
 //     },
 
 //     async getQRToken(sessionId, userId) {
 //         const res = await fetch(`${API_URL}/sessions/${sessionId}/qr_token?current_user_id=${userId}`);
-//         if (!res.ok) throw new Error("Could not generate token");
+//         if (!res.ok) throw new Error((await res.json()).detail);
 //         return res.json();
 //     },
 
@@ -213,11 +245,20 @@ const api = {
 //             headers: { 'Content-Type': 'application/json' },
 //             body: JSON.stringify({ qr_string: qrString })
 //         });
-//         if (!res.ok) throw new Error((await res.json()).detail);
-//         return res.json();
+//         const data = await res.json();
+//         if (!res.ok) throw new Error(data.detail);
+//         return data;
 //     },
 
-//     // --- Evaluation ---
+//     // --- Availability & Reviews ---
+//     async updateAvailability(userId, availability) {
+//         return fetch(`${API_URL}/availability/update`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ user_id: userId, availability })
+//         });
+//     },
+
 //     async saveEvaluation(sessionId, userId, data) {
 //         return fetch(`${API_URL}/sessions/${sessionId}/evaluate?current_user_id=${userId}`, {
 //             method: 'POST',
@@ -232,25 +273,6 @@ const api = {
 //             headers: { 'Content-Type': 'application/json' },
 //             body: JSON.stringify({ rating, comment })
 //         });
-//     },
-
-//     // --- Requests (Mentor View) ---
-//     async getRequests(mentorId) {
-//         const res = await fetch(`${API_URL}/requests/${mentorId}`);
-//         return res.json();
-//     },
-
-//     async handleRequestAction(sessionId, mentorId, action) {
-//         return fetch(`${API_URL}/bookings/action`, {
-//             method: 'POST',
-//             headers: { 'Content-Type': 'application/json' },
-//             body: JSON.stringify({ session_id: sessionId, mentor_id: mentorId, action })
-//         });
 //     }
 // };
 
-// const storage = {
-//     set: (k, v) => { try { localStorage.setItem(k, JSON.stringify(v)) } catch (e) { } },
-//     get: (k) => { try { return JSON.parse(localStorage.getItem(k)) } catch (e) { return null } },
-//     remove: (k) => { try { localStorage.removeItem(k) } catch (e) { } }
-// };
