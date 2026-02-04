@@ -1,6 +1,9 @@
 const API_URL = "https://jerin-api.flyai.online/x003/api";
 
 const api = {
+    baseUrl() {
+        return API_URL;
+    },
     // --- Auth ---
     async register(payload) {
         const res = await fetch(`${API_URL}/register`, {
@@ -166,5 +169,162 @@ const api = {
         }
         return res.json();
     }
+    ,
+    // --- Stripe Connect Helpers ---
+    async getStripeStatus(userId) {
+        const res = await fetch(`${API_URL}/stripe/status/${userId}`);
+        if (!res.ok) throw new Error("Failed to check Stripe status");
+        return res.json();
+    },
+
+    async updateLessonRates(payload) {
+        const res = await fetch(`${API_URL}/stripe/lesson_rates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to update lesson rates");
+        return data;
+    },
+
+    async updateUserMedia(userId, payload) {
+        const res = await fetch(`${API_URL}/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to update media");
+        return data;
+    },
+
+    async getPublicMentor(mentorId) {
+        const res = await fetch(`${API_URL}/public/mentors/${mentorId}`);
+        if (!res.ok) throw new Error("Failed to load mentor");
+        return res.json();
+    }
 };
 
+// const API_URL = "https://jerin-api.flyai.online/x003/api";
+
+// const api = {
+//     // --- Auth ---
+//     async register(payload) {
+//         const res = await fetch(`${API_URL}/register`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify(payload)
+//         });
+//         if (!res.ok) throw new Error((await res.json()).detail);
+//         return res.json();
+//     },
+
+//     async login(email, password) {
+//         const res = await fetch(`${API_URL}/login`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ email, password })
+//         });
+//         if (!res.ok) throw new Error("Invalid credentials");
+//         return res.json();
+//     },
+
+//     // --- Search & Profiles ---
+//     async getMentors(zip, rate) {
+//         let url =(`${API_URL}/mentors?`);
+//         if (zip) url += `zip_code=${zip}&`;
+//         if (rate) url += `max_rate=${rate}&`;
+//         const res = await fetch(url);
+//         return res.json();
+//     },
+
+//     async getMentorDetails(id) {
+//         const res = await fetch(`${API_URL}/mentors/${id}`);
+//         if (!res.ok) throw new Error("Failed to load mentor");
+//         return res.json();
+//     },
+
+//     // --- Scheduling & Payments ---
+//     async getUpcoming(userId, role) {
+//         const res = await fetch(`${API_URL}/sessions/upcoming?user_id=${userId}&role=${role}`);
+//         return res.json();
+//     },
+
+//     async getRequests(userId) {
+//         const res = await fetch(`${API_URL}/requests/${userId}`);
+//         return res.json();
+//     },
+
+//     // NEW: Real Stripe Flow
+//     async createBookingIntent(payload) {
+//         const res = await fetch(`${API_URL}/bookings/create_intent`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify(payload)
+//         });
+//         if (!res.ok) {
+//             const err = await res.json();
+//             throw new Error(err.detail || "Booking failed");
+//         }
+//         return res.json();
+//     },
+
+//     async handleRequestAction(sessionId, mentorId, action) {
+//         const res = await fetch(`${API_URL}/bookings/action`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ session_id: sessionId, mentor_id: mentorId, action: action })
+//         });
+//         if (!res.ok) throw new Error("Action failed");
+//         return res.json();
+//     },
+
+//     // --- Session & QR ---
+//     async getSessionStatus(sessionId) {
+//         const res = await fetch(`${API_URL}/sessions/${sessionId}`);
+//         return res.json();
+//     },
+
+//     async getQRToken(sessionId, userId) {
+//         const res = await fetch(`${API_URL}/sessions/${sessionId}/qr_token?current_user_id=${userId}`);
+//         if (!res.ok) throw new Error((await res.json()).detail);
+//         return res.json();
+//     },
+
+//     async scanQR(userId, qrString) {
+//         const res = await fetch(`${API_URL}/sessions/scan?current_user_id=${userId}`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ qr_string: qrString })
+//         });
+//         const data = await res.json();
+//         if (!res.ok) throw new Error(data.detail);
+//         return data;
+//     },
+
+//     // --- Availability & Reviews ---
+//     async updateAvailability(userId, availability) {
+//         return fetch(`${API_URL}/availability/update`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ user_id: userId, availability })
+//         });
+//     },
+
+//     async saveEvaluation(sessionId, userId, data) {
+//         return fetch(`${API_URL}/sessions/${sessionId}/evaluate?current_user_id=${userId}`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ evaluation_json: data })
+//         });
+//     },
+
+//     async submitRating(sessionId, userId, rating, comment) {
+//         return fetch(`${API_URL}/sessions/${sessionId}/rate?current_user_id=${userId}`, {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ rating, comment })
+//         });
+//     }
+// };

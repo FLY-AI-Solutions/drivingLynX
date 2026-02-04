@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drivingLynX | Mentor</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="h-20 border-b border-white/5 flex justify-between items-center px-6 sticky top-0 bg-black/80 backdrop-blur-md z-40">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='index.html'">
+      <span class="metallic-text text-lg">drivingLynX</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="index.html" class="text-xs font-bold text-gray-400 hover:text-white">BACK TO HOME</a>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto py-10 px-6">
+    <div class="grid md:grid-cols-2 gap-6">
+      <div class="glass-panel p-8">
+        <div class="w-24 h-24 bg-white/10 rounded-full mx-auto flex items-center justify-center border border-white/20 overflow-hidden">
+          <img id="mentorPhoto" class="hidden w-full h-full object-cover" alt="Mentor Photo">
+          <span id="mentorInitial" class="text-4xl font-black"></span>
+        </div>
+        <h1 id="mentorName" class="text-3xl font-black text-center mt-4">Mentor</h1>
+        <p id="mentorCity" class="text-center text-xs text-gray-400 mt-1">City</p>
+        <p id="mentorRates" class="text-center text-green-400 font-bold mt-4">Rates</p>
+
+        <button onclick="bookMentor()" class="btn-silver w-full mt-6 py-3 rounded-xl text-xs">BOOK A LESSON</button>
+
+        <div class="mt-6 text-center text-[10px] text-gray-500">Share this page</div>
+        <div class="mt-3 flex justify-center">
+          <div id="qrCanvas" class="bg-white p-3 rounded-xl"></div>
+        </div>
+      </div>
+
+      <div class="glass-panel p-8">
+        <h2 class="text-xl font-bold mb-4">License Verification</h2>
+        <p class="text-xs text-gray-400 mb-4">Learners can review the mentor's license image.</p>
+        <div id="licenseBox" class="bg-white/5 rounded-xl p-3 flex items-center justify-center min-h-[240px]">
+          <img id="licenseImage" class="max-h-80 w-full object-contain hidden" alt="License Image">
+          <span id="licenseEmpty" class="text-xs text-gray-500">No license uploaded.</span>
+        </div>
+      </div>
+    </div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    const params = new URLSearchParams(window.location.search);
+    const mentorId = params.get('mentor_id');
+    const shareUrl = window.location.href;
+
+    function bookMentor() {
+      const user = JSON.parse(localStorage.getItem('lynx_user') || 'null');
+      const target = `index.html?mentor_id=${encodeURIComponent(mentorId)}${user ? '' : '&login=1'}`;
+      window.location.href = target;
+    }
+
+    async function loadMentor() {
+      if (!mentorId) return;
+      try {
+        const data = await api.getPublicMentor(mentorId);
+        document.getElementById('mentorName').innerText = `${data.first_name} ${data.last_name}`;
+        document.getElementById('mentorCity').innerText = data.city || 'NY';
+        document.getElementById('mentorRates').innerText = `With Car: $${data.hourly_rate_with_car || 0}/hr · Without Car: $${data.hourly_rate_without_car || 0}/hr`;
+
+        const photo = document.getElementById('mentorPhoto');
+        const initial = document.getElementById('mentorInitial');
+        if (data.profile_photo) {
+          photo.src = data.profile_photo;
+          photo.classList.remove('hidden');
+          initial.textContent = '';
+        } else {
+          initial.textContent = data.first_name?.[0] || 'M';
+        }
+
+        const licenseImage = document.getElementById('licenseImage');
+        const licenseEmpty = document.getElementById('licenseEmpty');
+        if (data.license_image) {
+          licenseImage.src = data.license_image;
+          licenseImage.classList.remove('hidden');
+          licenseEmpty.classList.add('hidden');
+        }
+
+        new QRCode(document.getElementById('qrCanvas'), {
+          text: shareUrl,
+          width: 140,
+          height: 140
+        });
+      } catch (e) {
+        console.error(e);
+      }
+    }
+
+    loadMentor();
+  </script>
+</body>
+</html>
