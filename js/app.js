@@ -543,7 +543,12 @@ const app = {
 
     startStripeOnboardingFromDashboard() {
         if (!this.state.currentUser) return;
-        window.location.href = `${api.baseUrl()}/stripe/onboard?current_user_id=${this.state.currentUser.id}`;
+        this.showToast("Opening Stripe onboarding...", "info");
+        api.createOnboardingLink(this.state.currentUser.id)
+            .then((data) => {
+                window.location.href = data.url;
+            })
+            .catch(() => this.showToast("Could not create onboarding link.", "error"));
     },
 
     showToast(message, variant = "info") {
