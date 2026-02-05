@@ -199,6 +199,12 @@ const api = {
         return data;
     },
 
+    async getUser(userId) {
+        const res = await fetch(`${API_URL}/users/${userId}`);
+        if (!res.ok) throw new Error("Failed to load user");
+        return res.json();
+    },
+
     async getPublicMentor(mentorId) {
         const res = await fetch(`${API_URL}/public/mentors/${mentorId}`);
         if (!res.ok) throw new Error("Failed to load mentor");

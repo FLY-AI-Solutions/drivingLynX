@@ -502,6 +502,11 @@ const app = {
         if (btnOnboard) btnOnboard.classList.add('hidden');
 
         try {
+            // Refresh user status from backend so approvals are reflected immediately
+            const freshUser = await api.getUser(this.state.currentUser.id);
+            this.state.currentUser = { ...this.state.currentUser, ...freshUser };
+            storage.set('lynx_user', this.state.currentUser);
+
             if (mentorStatusBadge) {
                 const status = this.state.currentUser?.mentor_status || "pending_review";
                 mentorStatusBadge.classList.remove('hidden');
