@@ -48,10 +48,13 @@
           grid.innerHTML = '<div class="text-xs text-gray-500">Admin token required.</div>';
           return;
         }
+        console.log("[admin] Using API base:", api.baseUrl());
         const res = await fetch(`${api.baseUrl()}/admin/mentors`, {
           headers: { 'x-admin-token': token }
         });
+        console.log("[admin] Status:", res.status);
         const data = await res.json();
+        console.log("[admin] Response:", data);
         if (!res.ok) {
           grid.innerHTML = `<div class="text-xs text-gray-500">${data.detail || 'Failed to load.'}</div>`;
           return;
