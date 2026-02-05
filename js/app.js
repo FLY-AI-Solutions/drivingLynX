@@ -554,6 +554,19 @@ const app = {
             if (ready) {
                 this.state.currentUser.stripe_onboarding_complete = true;
                 storage.set('lynx_user', this.state.currentUser);
+                this.switchTab('rates');
+                this.loadLessonRates();
+                const rateWithout = this.state.currentUser.hourly_rate_without_car || 0;
+                const rateWith = this.state.currentUser.hourly_rate_with_car || 0;
+                if (rateWithout > 0 || rateWith > 0) {
+                    await api.updateLessonRates({
+                        user_id: this.state.currentUser.id,
+                        rate_without_car: rateWithout,
+                        rate_with_car: rateWith,
+                        currency: "usd"
+                    });
+                    this.showToast("Lesson products synced.", "success");
+                }
             }
         } catch (e) {
             ratesStatus.innerText = "Unable to check status.";
