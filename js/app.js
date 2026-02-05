@@ -517,12 +517,19 @@ const app = {
                 }
             }
             const status = await api.getStripeStatus(this.state.currentUser.id);
-            const ready = status.details_submitted && status.ready_to_process_payments;
+            if (status.error) {
+                ratesStatus.innerText = "Unable to verify Stripe status. Try Refresh Status.";
+                this.showToast(status.error, "error");
+                return;
+            }
+
+            const mentorApproved = this.state.currentUser?.mentor_status === "approved";
+            const ready = mentorApproved && status.details_submitted && status.ready_to_process_payments;
             ratesStatus.innerText = ready ? "Payouts active. You can update rates." : "Complete Stripe onboarding to set rates.";
             btn.disabled = !ready;
             inputWithout.disabled = !ready;
             inputWith.disabled = !ready;
-            if (!ready && btnOnboard) btnOnboard.classList.remove('hidden');
+            if (!ready && btnOnboard && mentorApproved) btnOnboard.classList.remove('hidden');
             this.updatePayoutBadge(ready);
         } catch (e) {
             ratesStatus.innerText = "Unable to check status.";
