@@ -59,11 +59,11 @@
           grid.innerHTML = `<div class="text-xs text-gray-500">${data.detail || 'Failed to load.'}</div>`;
           return;
         }
-        if (!data.length) {
+        if (!data.items || !data.items.length) {
           grid.innerHTML = `<div class="text-xs text-gray-500">No pending mentors.</div>`;
           return;
         }
-        grid.innerHTML = data.map(m => `
+        grid.innerHTML = data.items.map(m => `
           <div class="glass-panel p-6">
             <div class="flex items-center gap-3 mb-3">
               <div class="w-12 h-12 rounded-full bg-white/10 overflow-hidden border border-white/10">
