@@ -534,6 +534,26 @@ const app = {
         }
     },
 
+    async refreshPayoutStatus() {
+        const ratesStatus = document.getElementById('ratesStatus');
+        if (!this.state.currentUser) return;
+        ratesStatus.innerText = "Refreshing status...";
+        try {
+            const status = await api.getStripeStatus(this.state.currentUser.id);
+            const ready = status.details_submitted && status.ready_to_process_payments;
+            ratesStatus.innerText = ready ? "Payouts active. You can update rates." : "Complete Stripe onboarding to set rates.";
+            this.updatePayoutBadge(ready);
+            this.showToast("Payout status refreshed.", "success");
+            if (ready) {
+                this.state.currentUser.stripe_onboarding_complete = true;
+                storage.set('lynx_user', this.state.currentUser);
+            }
+        } catch (e) {
+            ratesStatus.innerText = "Unable to check status.";
+            this.showToast("Failed to refresh status.", "error");
+        }
+    },
+
     async saveLessonRates() {
         const inputWithout = document.getElementById('rateWithoutCar');
         const inputWith = document.getElementById('rateWithCar');
@@ -704,6 +724,8 @@ const app = {
                     this.showBanner("Payouts setup complete. You can now receive paid requests.");
                     this.showToast("Payouts setup complete.", "success");
                     this.updatePayoutBadge(true);
+                    this.switchTab('rates');
+                    this.loadLessonRates();
                 } else {
                     this.showBanner("Payouts setup started. Please finish in Stripe if prompted again.");
                 }
