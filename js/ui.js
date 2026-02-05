@@ -1,10 +1,10 @@
 const ui = {
     // --- Navigation (No Changes) ---
     switchTab(tabId, userRole) {
-        const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming'];
+        const views = ['viewFind', 'viewProfile', 'viewPayment', 'viewRequests', 'viewSession', 'viewManageAvailability', 'viewUpcoming', 'viewRates', 'viewPolicy'];
         views.forEach(id => document.getElementById(id).classList.add('hidden'));
 
-        const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail', 'tabUpcoming'];
+        const tabs = ['tabFind', 'tabRequests', 'tabSession', 'tabAvail', 'tabUpcoming', 'tabRates', 'tabPolicy'];
         tabs.forEach(id => {
             const el = document.getElementById(id);
             if (el) el.className = 'text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap';
@@ -13,11 +13,12 @@ const ui = {
         if (userRole !== 'mentor') {
             document.getElementById('tabRequests').classList.add('hidden');
             document.getElementById('tabAvail').classList.add('hidden');
+            document.getElementById('tabRates').classList.add('hidden');
         }
 
         const map = {
             'find': 'viewFind', 'requests': 'viewRequests', 'session': 'viewSession',
-            'avail': 'viewManageAvailability', 'upcoming': 'viewUpcoming'
+            'avail': 'viewManageAvailability', 'upcoming': 'viewUpcoming', 'rates': 'viewRates', 'policy': 'viewPolicy'
         };
         
         if (map[tabId]) {
@@ -55,12 +56,24 @@ const ui = {
 
     renderMentors(data) {
         const grid = document.getElementById('mentorGrid');
-        grid.innerHTML = data.map(m => `
+        if (!data || data.length === 0) {
+            grid.innerHTML = "<div class='text-gray-500 text-center'>No mentors available yet.</div>";
+            return;
+        }
+        grid.innerHTML = data.map(m => {
+            const rates = [m.hourly_rate_without_car || 0, m.hourly_rate_with_car || 0].filter(r => r > 0);
+            const fromRate = rates.length ? Math.min(...rates) : 0;
+            return `
             <div class="glass-panel p-6">
-                <div class="flex justify-between mb-2"><h3 class="font-bold">${m.first_name} ${m.last_name}</h3><span class="text-green-400 font-bold">$${m.hourly_rate}</span></div>
+                <div class="flex justify-between mb-2">
+                    <h3 class="font-bold">${m.first_name} ${m.last_name}</h3>
+                    <span class="text-green-400 font-bold">From $${fromRate}</span>
+                </div>
                 <p class="text-xs text-gray-400 mb-4">${m.city || 'NY'}</p>
+                <p class="text-[10px] text-gray-500 mb-4">With Car: $${m.hourly_rate_with_car || 0}/hr · Without Car: $${m.hourly_rate_without_car || 0}/hr</p>
                 <button onclick="app.openMentorProfile(${m.id})" class="btn-silver w-full py-2 text-xs">REQUEST SESSION</button>
-            </div>`).join('');
+            </div>`;
+        }).join('');
     },
 
     // --- UPDATED: Requests View with Payout Reminder ---
@@ -131,10 +144,23 @@ const ui = {
     // ... (Keep existing profile/calendar/session renderers) ...
     renderProfile(data, availability, selectedSlots) {
         document.getElementById('profileName').innerText = `${data.first_name} ${data.last_name}`;
-        // Update to handle $0/free
-        const rateDisplay = data.hourly_rate > 0 ? `$${data.hourly_rate}/hr` : "Free (Volunteer)";
+        const rateWithCar = data.hourly_rate_with_car || 0;
+        const rateWithoutCar = data.hourly_rate_without_car || 0;
+        const rateDisplay = `With Car: $${rateWithCar}/hr · Without Car: $${rateWithoutCar}/hr`;
         document.getElementById('profileRate').innerText = rateDisplay;
-        document.getElementById('profileInitials').innerText = data.first_name[0];
+        const initials = document.getElementById('profileInitials');
+        const photo = document.getElementById('profilePhoto');
+        if (data.profile_photo) {
+            photo.src = data.profile_photo;
+            photo.classList.remove('hidden');
+            initials.classList.add('bg-transparent');
+            initials.childNodes.forEach(node => {
+                if (node.nodeType === Node.TEXT_NODE) node.textContent = '';
+            });
+        } else {
+            photo.classList.add('hidden');
+            initials.textContent = data.first_name[0];
+        }
         document.getElementById('profileCar').innerText = data.car || "Uses Student Car";
 
         const setBar = (id, val, max = 5) => {
@@ -241,8 +267,9 @@ const ui = {
         if (!document.getElementById('reader')) {
             container.innerHTML = `
                 <div id="reader" style="width: 100%; border-radius: 12px; overflow: hidden;"></div>
-                <button onclick="app.processManualScan()" class="text-xs text-gray-500 mt-2 underline block mx-auto">Use Manual Input</button>
+                <button onclick="app.toggleManualScanInput()" class="text-xs text-gray-500 mt-2 underline block mx-auto">Use Manual Input</button>
                 <input type="text" id="scanInput" class="hidden lynx-input mt-2 text-center" placeholder="Paste Token"> 
+                <button id="scanSubmitBtn" onclick="app.processManualScan()" class="hidden btn-silver w-full py-2 mt-2 text-xs">SUBMIT TOKEN</button>
             `;
         }
     },
@@ -501,6 +528,3 @@ const ui = {
 //         return dates;
 //     }
 // };
-
-
-

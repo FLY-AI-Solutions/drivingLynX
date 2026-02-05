@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>drivingLynX | Audit Logs</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <nav class="h-20 border-b border-white/5 flex justify-between items-center px-6 sticky top-0 bg-black/80 backdrop-blur-md z-40">
+    <div class="flex items-center gap-3 cursor-pointer" onclick="window.location.href='index.html'">
+      <span class="metallic-text text-lg">drivingLynX</span>
+    </div>
+    <div class="flex items-center gap-4">
+      <a href="admin.html" class="text-xs font-bold text-gray-400 hover:text-white">MENTOR APPROVALS</a>
+      <a href="index.html" class="text-xs font-bold text-gray-400 hover:text-white">BACK TO HOME</a>
+    </div>
+  </nav>
+
+  <main class="max-w-5xl mx-auto py-10 px-6">
+    <div class="glass-panel p-8 mb-6">
+      <h1 class="text-3xl font-black mb-2">Audit Logs</h1>
+      <p class="text-xs text-gray-400">Recent onboarding, payout, and pricing actions.</p>
+    </div>
+
+    <div id="logList" class="space-y-3"></div>
+  </main>
+
+  <script src="js/api.js"></script>
+  <script>
+    function getAdminToken() {
+      const token = localStorage.getItem('admin_token');
+      if (token) return token;
+      const input = prompt('Enter admin token:');
+      if (!input) return null;
+      localStorage.setItem('admin_token', input);
+      return input;
+    }
+
+    async function loadLogs() {
+      const list = document.getElementById('logList');
+      list.innerHTML = 'Loading...';
+      try {
+        const token = getAdminToken();
+        if (!token) {
+          list.innerHTML = '<div class="text-xs text-gray-500">Admin token required.</div>';
+          return;
+        }
+        const res = await fetch(`${api.baseUrl()}/admin/audit_logs`, {
+          headers: { 'x-admin-token': token }
+        });
+        const data = await res.json();
+        if (!res.ok) {
+          list.innerHTML = `<div class="text-xs text-gray-500">${data.detail || 'Failed to load.'}</div>`;
+          return;
+        }
+        if (!data.length) {
+          list.innerHTML = `<div class="text-xs text-gray-500">No audit logs yet.</div>`;
+          return;
+        }
+        list.innerHTML = data.map(l => `
+          <div class="glass-panel p-4">
+            <div class="text-xs text-gray-500">${l.created_at}</div>
+            <div class="text-sm font-bold">${l.action_type}</div>
+            <div class="text-[10px] text-gray-400">User: ${l.user_id || 'n/a'}</div>
+            <pre class="text-[10px] text-gray-500 mt-2 whitespace-pre-wrap">${JSON.stringify(l.action_meta || {}, null, 2)}</pre>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = '<div class="text-xs text-gray-500">Failed to load.</div>';
+      }
+    }
+
+    loadLogs();
+  </script>
+</body>
+</html>

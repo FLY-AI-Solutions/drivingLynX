@@ -19,6 +19,7 @@ const app = {
 
     init() {
         setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 1000);
+        this.handleDeepLink();
         const user = storage.get('lynx_user');
         if (user) {
             this.showDashboard(user);
@@ -29,10 +30,12 @@ const app = {
                         user.stripe_onboarding_complete = true;
                         storage.set('lynx_user', user);
                         this.state.currentUser = user;
+                        this.updatePayoutBadge(true);
                     }
                 });
             }
         }
+        this.handleOnboardingReturn();
         this.initStripe();
     },
 
@@ -93,6 +96,10 @@ const app = {
             storage.set('lynx_user', data.user);
             this.showDashboard(data.user);
             this.closeModal();
+            if (this.state.pendingMentorId) {
+                this.openMentorProfile(this.state.pendingMentorId);
+                this.state.pendingMentorId = null;
+            }
         } catch (e) { alert("Login failed"); }
     },
 
@@ -100,6 +107,8 @@ const app = {
         const btn = document.getElementById('nextBtn');
         if (!document.getElementById('regConsent').checked) return alert("Agree to terms required");
         btn.innerText = "Processing...";
+        const licenseFile = document.getElementById('regLicenseImage')?.files?.[0];
+        const licenseImage = licenseFile ? await this.readFileAsDataUrl(licenseFile) : null;
         const payload = {
             role: this.state.userRole,
             first_name: document.getElementById('regFirst').value,
@@ -111,10 +120,11 @@ const app = {
             city: document.getElementById('regCity').value,
             state: "NY",
             zip_code: document.getElementById('regZip').value,
-            hourly_rate: parseFloat(document.getElementById('regRate').value || 0),
+            hourly_rate: 0,
             has_car: this.state.hasCar,
             car_make_model: document.getElementById('regCarModel').value || null,
-            car_plate: document.getElementById('regCarPlate').value || null
+            car_plate: document.getElementById('regCarPlate').value || null,
+            license_image: licenseImage
         };
         try {
             await api.register(payload);
@@ -132,18 +142,21 @@ const app = {
         document.getElementById('navUserArea').classList.remove('hidden');
         document.getElementById('userNameDisplay').innerText = user.first_name;
         document.getElementById('roleBadge').innerText = user.role;
+        this.updatePayoutBadge(user.role === 'mentor' && user.stripe_onboarding_complete);
 
         if (user.role === 'mentor') {
             document.getElementById('tabFind').classList.add('hidden');
             document.getElementById('tabRequests').classList.remove('hidden');
             document.getElementById('tabAvail').classList.remove('hidden');
             document.getElementById('tabUpcoming').classList.remove('hidden');
+            document.getElementById('tabRates').classList.remove('hidden');
             this.switchTab('requests');
         } else {
             document.getElementById('tabFind').classList.remove('hidden');
             document.getElementById('tabRequests').classList.add('hidden');
             document.getElementById('tabAvail').classList.add('hidden');
             document.getElementById('tabUpcoming').classList.remove('hidden');
+            document.getElementById('tabRates').classList.add('hidden');
             this.switchTab('find');
             this.loadMentors();
         }
@@ -164,6 +177,8 @@ const app = {
         if (tabId === 'requests') this.loadRequests();
         if (tabId === 'upcoming') this.loadUpcoming();
         if (tabId === 'avail') this.showAvailabilityEditor();
+        if (tabId === 'rates') this.loadLessonRates();
+        if (tabId === 'policy') this.loadPolicy();
     },
 
     async loadRequests() {
@@ -193,6 +208,7 @@ const app = {
             this.state.selectedSlots = [];
             document.getElementById('selectedCount').innerText = "0";
             ui.renderProfile(data, data.availability, []);
+            document.getElementById('btnViewLicense').classList.toggle('hidden', !data.license_image);
         } catch (e) { alert(e.message); }
     },
 
@@ -270,8 +286,19 @@ const app = {
     },
 
     async processManualScan() {
-        const token = document.getElementById('scanInput').value;
+        const token = document.getElementById('scanInput').value.trim();
+        if (!token) return alert("Paste a token first.");
         this.handleScanSuccess(token);
+    },
+    
+    toggleManualScanInput() {
+        const input = document.getElementById('scanInput');
+        const submit = document.getElementById('scanSubmitBtn');
+        if (!input || !submit) return;
+        const makeVisible = input.classList.contains('hidden');
+        input.classList.toggle('hidden', !makeVisible);
+        submit.classList.toggle('hidden', !makeVisible);
+        if (makeVisible) input.focus();
     },
 
     async saveEvaluation() {
@@ -353,7 +380,7 @@ const app = {
         document.getElementById('viewPayment').classList.remove('hidden');
         
         const count = this.state.selectedSlots.length;
-        const rate = this.state.selectedMentor.hourly_rate;
+        const rate = this.getCurrentLessonRate();
         const subtotal = count * rate;
         
         document.getElementById('payCount').innerText = count;
@@ -364,6 +391,14 @@ const app = {
         if (this.state.cardElement) {
             this.state.cardElement.mount('#card-element');
         }
+    },
+
+    getCurrentLessonRate() {
+        const mentor = this.state.selectedMentor || {};
+        const hasCar = this.state.currentUser?.has_car;
+        const rateWithoutCar = mentor.hourly_rate_without_car || 0;
+        const rateWithCar = mentor.hourly_rate_with_car || 0;
+        return hasCar ? rateWithoutCar : rateWithCar;
     },
 
     async submitBooking() {
@@ -451,6 +486,124 @@ const app = {
         } catch (e) { alert("Save failed"); }
     },
 
+    async loadLessonRates() {
+        const ratesStatus = document.getElementById('ratesStatus');
+        const btn = document.getElementById('btnSaveRates');
+        const inputWithout = document.getElementById('rateWithoutCar');
+        const inputWith = document.getElementById('rateWithCar');
+        const btnOnboard = document.getElementById('btnCompleteOnboarding');
+        const mentorStatusBadge = document.getElementById('mentorStatusBadge');
+        if (!ratesStatus || !btn) return;
+
+        ratesStatus.innerText = "Checking onboarding status...";
+        btn.disabled = true;
+        inputWithout.disabled = true;
+        inputWith.disabled = true;
+        if (btnOnboard) btnOnboard.classList.add('hidden');
+
+        try {
+            if (mentorStatusBadge) {
+                const status = this.state.currentUser?.mentor_status || "pending_review";
+                mentorStatusBadge.classList.remove('hidden');
+                if (status === "approved") {
+                    mentorStatusBadge.className = "text-[10px] font-bold uppercase tracking-widest mb-3 text-green-400";
+                    mentorStatusBadge.innerText = "Mentor Status: Approved";
+                } else if (status === "rejected") {
+                    mentorStatusBadge.className = "text-[10px] font-bold uppercase tracking-widest mb-3 text-red-400";
+                    mentorStatusBadge.innerText = "Mentor Status: Rejected";
+                } else {
+                    mentorStatusBadge.className = "text-[10px] font-bold uppercase tracking-widest mb-3 text-yellow-400";
+                    mentorStatusBadge.innerText = "Mentor Status: Pending Review";
+                }
+            }
+            const status = await api.getStripeStatus(this.state.currentUser.id);
+            const ready = status.details_submitted && status.ready_to_process_payments;
+            ratesStatus.innerText = ready ? "Payouts active. You can update rates." : "Complete Stripe onboarding to set rates.";
+            btn.disabled = !ready;
+            inputWithout.disabled = !ready;
+            inputWith.disabled = !ready;
+            if (!ready && btnOnboard) btnOnboard.classList.remove('hidden');
+            this.updatePayoutBadge(ready);
+        } catch (e) {
+            ratesStatus.innerText = "Unable to check status.";
+        }
+
+        if (this.state.currentUser) {
+            inputWithout.value = this.state.currentUser.hourly_rate_without_car || 0;
+            inputWith.value = this.state.currentUser.hourly_rate_with_car || 0;
+        }
+    },
+
+    async saveLessonRates() {
+        const inputWithout = document.getElementById('rateWithoutCar');
+        const inputWith = document.getElementById('rateWithCar');
+        this.showToast("Saving rates...", "info");
+        try {
+            const res = await api.updateLessonRates({
+                user_id: this.state.currentUser.id,
+                rate_without_car: parseFloat(inputWithout.value || 0),
+                rate_with_car: parseFloat(inputWith.value || 0),
+                currency: "usd"
+            });
+            this.showToast(res.message || "Rates updated.", "success");
+            this.state.currentUser.hourly_rate_without_car = parseFloat(inputWithout.value || 0);
+            this.state.currentUser.hourly_rate_with_car = parseFloat(inputWith.value || 0);
+            storage.set('lynx_user', this.state.currentUser);
+            if (!document.getElementById('viewFind').classList.contains('hidden')) {
+                this.loadMentors();
+            }
+        } catch (e) {
+            this.showToast("Update failed.", "error");
+        }
+    },
+
+    async loadPolicy() {
+        const list = document.getElementById('policyList');
+        if (!list) return;
+        list.innerHTML = "<li class='text-gray-500'>Loading...</li>";
+        try {
+            const res = await api.getRefundPolicy();
+            list.innerHTML = res.body.map(item => `<li>• ${item}</li>`).join('');
+        } catch (e) {
+            list.innerHTML = "<li class='text-gray-500'>Unable to load policy.</li>";
+        }
+    },
+
+    startStripeOnboardingFromDashboard() {
+        if (!this.state.currentUser) return;
+        this.showToast("Opening Stripe onboarding...", "info");
+        api.createOnboardingLink(this.state.currentUser.id)
+            .then((data) => {
+                window.location.href = data.url;
+            })
+            .catch(() => this.showToast("Could not create onboarding link.", "error"));
+    },
+
+    showToast(message, variant = "info") {
+        const container = document.getElementById('toastContainer');
+        if (!container) return;
+        const el = document.createElement('div');
+        const colors = {
+            success: "border-green-500/40 text-green-300",
+            error: "border-red-500/40 text-red-300",
+            info: "border-white/20 text-gray-200"
+        };
+        el.className = `glass-panel px-4 py-3 text-xs font-bold ${colors[variant] || colors.info}`;
+        el.innerText = message;
+        container.appendChild(el);
+        setTimeout(() => {
+            el.style.opacity = "0";
+            el.style.transform = "translateY(6px)";
+        }, 2800);
+        setTimeout(() => el.remove(), 3200);
+    },
+
+    updatePayoutBadge(isReady) {
+        const badge = document.getElementById('payoutBadge');
+        if (!badge) return;
+        badge.classList.toggle('hidden', !isReady);
+    },
+
     async handleRequest(sid, action) {
         try {
             await api.handleRequestAction(sid, this.state.currentUser.id, action);
@@ -512,13 +665,81 @@ const app = {
         val ? details.classList.remove('hidden') : details.classList.add('hidden');
     },
 
+    readFileAsDataUrl(file) {
+        return new Promise((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onload = () => resolve(reader.result);
+            reader.onerror = () => reject(new Error("File read failed"));
+            reader.readAsDataURL(file);
+        });
+    },
+
+    handleDeepLink() {
+        const params = new URLSearchParams(window.location.search);
+        const mentorId = params.get('mentor_id');
+        const needsLogin = params.get('login') === '1';
+        if (mentorId) {
+            this.state.pendingMentorId = mentorId;
+            if (needsLogin) this.openModal('login');
+        }
+    },
+
     setStar(n) {
         this.state.currentRating = n;
         document.querySelectorAll('.star-rating').forEach((s, i) => s.classList.toggle('active', i < n));
     },
 
+    async handleOnboardingReturn() {
+        const params = new URLSearchParams(window.location.search);
+        if (params.get('onboarding') !== 'success') return;
+
+        this.showBanner("Payouts setup complete. Checking status...");
+
+        if (this.state.currentUser?.role === 'mentor') {
+            try {
+                const status = await api.checkStripeStatus(this.state.currentUser.id);
+                if (status.details_submitted) {
+                    this.state.currentUser.stripe_onboarding_complete = true;
+                    storage.set('lynx_user', this.state.currentUser);
+                    this.showBanner("Payouts setup complete. You can now receive paid requests.");
+                    this.showToast("Payouts setup complete.", "success");
+                    this.updatePayoutBadge(true);
+                } else {
+                    this.showBanner("Payouts setup started. Please finish in Stripe if prompted again.");
+                }
+            } catch (e) {
+                this.showBanner("Payouts setup complete. Refresh if status doesn't update.");
+            }
+        }
+
+        params.delete('onboarding');
+        const newUrl = `${window.location.pathname}${params.toString() ? '?' + params.toString() : ''}`;
+        window.history.replaceState({}, document.title, newUrl);
+    },
+
+    showBanner(message) {
+        const banner = document.getElementById('banner');
+        const text = document.getElementById('bannerText');
+        if (!banner || !text) return;
+        text.innerText = message;
+        banner.classList.remove('hidden');
+        clearTimeout(this._bannerTimer);
+        this._bannerTimer = setTimeout(() => banner.classList.add('hidden'), 7000);
+    },
+
     closeModal() { document.getElementById('authModal').classList.replace('flex', 'hidden'); },
     closeDateModal() { document.getElementById('dateModal').classList.replace('flex', 'hidden'); },
+    openLicenseModal() {
+        const img = document.getElementById('licenseImage');
+        if (!this.state.selectedMentor?.license_image) return;
+        img.src = this.state.selectedMentor.license_image;
+        document.getElementById('licenseModal').classList.replace('hidden', 'flex');
+    },
+    closeLicenseModal() { document.getElementById('licenseModal').classList.replace('flex', 'hidden'); },
+    openShareProfile() {
+        if (!this.state.currentUser || this.state.currentUser.role !== 'mentor') return;
+        window.location.href = `mentor-share.html?mentor_id=${this.state.currentUser.id}`;
+    },
     logout() { storage.remove('lynx_user'); window.location.reload(); },
     goHome() { window.location.reload(); }
 };
@@ -1037,4 +1258,3 @@ const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) =
 
 // window.onload = () => app.init();
 // const storage = { get: (k) => JSON.parse(localStorage.getItem(k)), set: (k, v) => localStorage.setItem(k, JSON.stringify(v)), remove: (k) => localStorage.removeItem(k) };
-

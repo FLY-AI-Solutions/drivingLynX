@@ -1,6 +1,9 @@
 const API_URL = "https://jerin-api.flyai.online/x003/api";
 
 const api = {
+    baseUrl() {
+        return API_URL;
+    },
     // --- Auth ---
     async register(payload) {
         const res = await fetch(`${API_URL}/register`, {
@@ -129,27 +132,83 @@ const api = {
 
     // --- Availability & Reviews ---
     async updateAvailability(userId, availability) {
-        return fetch(`${API_URL}/availability/update`, {
+        const res = await fetch(`${API_URL}/availability/update`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ user_id: userId, availability })
         });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Availability update failed");
+        }
+        return res.json();
     },
 
     async saveEvaluation(sessionId, userId, data) {
-        return fetch(`${API_URL}/sessions/${sessionId}/evaluate?current_user_id=${userId}`, {
+        const res = await fetch(`${API_URL}/sessions/${sessionId}/evaluate?current_user_id=${userId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ evaluation_json: data })
         });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Evaluation save failed");
+        }
+        return res.json();
     },
 
     async submitRating(sessionId, userId, rating, comment) {
-        return fetch(`${API_URL}/sessions/${sessionId}/rate?current_user_id=${userId}`, {
+        const res = await fetch(`${API_URL}/sessions/${sessionId}/rate?current_user_id=${userId}`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ rating, comment })
         });
+        if (!res.ok) {
+            const err = await res.json();
+            throw new Error(err.detail || "Rating submit failed");
+        }
+        return res.json();
+    }
+    ,
+    // --- Stripe Connect Helpers ---
+    async getStripeStatus(userId) {
+        const res = await fetch(`${API_URL}/stripe/status/${userId}`);
+        if (!res.ok) throw new Error("Failed to check Stripe status");
+        return res.json();
+    },
+
+    async updateLessonRates(payload) {
+        const res = await fetch(`${API_URL}/stripe/lesson_rates`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to update lesson rates");
+        return data;
+    },
+
+    async updateUserMedia(userId, payload) {
+        const res = await fetch(`${API_URL}/users/${userId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to update media");
+        return data;
+    },
+
+    async getPublicMentor(mentorId) {
+        const res = await fetch(`${API_URL}/public/mentors/${mentorId}`);
+        if (!res.ok) throw new Error("Failed to load mentor");
+        return res.json();
+    },
+
+    async getRefundPolicy() {
+        const res = await fetch(`${API_URL}/policy/refunds`);
+        if (!res.ok) throw new Error("Failed to load policy");
+        return res.json();
     }
 };
 
@@ -275,4 +334,3 @@ const api = {
 //         });
 //     }
 // };
-

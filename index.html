@@ -25,10 +25,14 @@
             <button onclick="app.openModal('login')" class="text-xs font-bold text-gray-400 hover:text-white">LOGIN</button>
             <button onclick="app.openModal('register', 'learner')" class="btn-silver px-6 py-2 rounded-full text-xs">JOIN NOW</button>
         </div>
+        <div id="navLinks" class="hidden md:flex items-center gap-4">
+            <a href="terms.html" class="text-xs font-bold text-gray-400 hover:text-white">TERMS & SAFETY</a>
+        </div>
         <div id="navUserArea" class="hidden flex items-center gap-4">
             <div class="text-right">
                 <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="roleBadge">User</span>
                 <span id="userNameDisplay" class="text-white font-bold text-sm">Driver</span>
+                <span id="payoutBadge" class="hidden text-[9px] font-bold uppercase tracking-widest text-green-400">Payouts Ready</span>
             </div>
             <button onclick="app.logout()" class="text-[10px] font-bold text-red-500 border border-red-500/20 px-3 py-1 rounded">LOGOUT</button>
         </div>
@@ -64,6 +68,8 @@
             <button onclick="app.switchTab('requests')" id="tabRequests" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Requests</button>
             <button onclick="app.switchTab('upcoming')" id="tabUpcoming" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Upcoming</button>
             <button onclick="app.switchTab('avail')" id="tabAvail" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Set Availability</button>
+            <button onclick="app.switchTab('rates')" id="tabRates" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Lesson Rates</button>
+            <button onclick="app.switchTab('policy')" id="tabPolicy" class="text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Policy</button>
             <button onclick="app.switchTab('session')" id="tabSession" class="hidden text-gray-500 font-bold border-b-2 border-transparent pb-4 whitespace-nowrap">Active Session</button>
         </div>
         
@@ -81,6 +87,27 @@
                 <button class="btn-silver py-2 px-4 text-xs flex items-center gap-2">📅 Download .ics</button>
             </div>
             <div id="upcomingGrid" class="grid gap-4 md:grid-cols-2"></div>
+        </div>
+
+        <div id="viewRates" class="hidden max-w-2xl mx-auto">
+            <div class="glass-panel p-8">
+                <h2 class="text-2xl font-bold mb-2">Set Lesson Rates</h2>
+                <p class="text-xs text-gray-400 mb-6">Update pricing after payout setup is complete.</p>
+                <div id="mentorStatusBadge" class="hidden text-[10px] font-bold uppercase tracking-widest mb-3"></div>
+                <div id="ratesStatus" class="text-xs text-gray-500 mb-4">Checking onboarding status...</div>
+                <button id="btnCompleteOnboarding" onclick="app.startStripeOnboardingFromDashboard()" class="hidden btn-silver w-full mb-6 py-3 rounded-xl text-xs">COMPLETE ONBOARDING</button>
+                <div class="space-y-4">
+                    <div>
+                        <label class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Driving Lesson (Without Car)</label>
+                        <input type="number" id="rateWithoutCar" placeholder="e.g. 40" class="lynx-input mt-2">
+                    </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Driving Lesson (With Car)</label>
+                        <input type="number" id="rateWithCar" placeholder="e.g. 55" class="lynx-input mt-2">
+                    </div>
+                </div>
+                <button id="btnSaveRates" onclick="app.saveLessonRates()" class="btn-silver w-full mt-6 py-3 rounded-xl text-xs">SAVE RATES</button>
+            </div>
         </div>
 
         <div id="viewFind">
@@ -102,8 +129,10 @@
         <div id="viewProfile" class="hidden">
             <button onclick="app.switchTab('find')" class="mb-4 text-xs font-bold text-gray-500 hover:text-white">← BACK TO LIST</button>
             <div class="grid md:grid-cols-3 gap-8">
-                <div class="glass-panel p-8 h-fit">
-                    <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center text-3xl font-black mb-4 mx-auto border border-white/20" id="profileInitials"></div>
+            <div class="glass-panel p-8 h-fit">
+                    <div class="w-20 h-20 bg-white/10 rounded-full flex items-center justify-center text-3xl font-black mb-4 mx-auto border border-white/20 overflow-hidden" id="profileInitials">
+                        <img id="profilePhoto" class="hidden w-full h-full object-cover" alt="Mentor Photo">
+                    </div>
                     <h2 class="text-3xl font-black text-center mb-1" id="profileName">Name</h2>
                     <p class="text-center text-green-400 font-bold mb-6" id="profileRate">$0/hr</p>
                     <div class="space-y-6 mb-8">
@@ -120,10 +149,11 @@
                             <div class="rating-bar-bg"><div id="barKnowledge" class="rating-bar-fill skill-gradient" style="width: 0%"></div></div>
                         </div>
                     </div>
-                    <div class="p-4 bg-white/5 rounded-xl">
+                    <div class="p-4 bg-white/5 rounded-xl mb-3">
                         <p class="text-xs text-gray-400 mb-1 font-bold uppercase">Vehicle</p>
                         <p id="profileCar" class="text-sm font-bold">Uses Student Car</p>
                     </div>
+                    <button id="btnViewLicense" onclick="app.openLicenseModal()" class="w-full text-xs font-bold text-gray-400 hover:text-white">View License</button>
                 </div>
 
                 <div class="glass-panel p-8 col-span-2">
@@ -144,7 +174,7 @@
             </div>
         </div>
 
-        <div id="dateModal" class="fixed inset-0 z-[150] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+    <div id="dateModal" class="fixed inset-0 z-[150] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4">
             <div class="glass-panel w-full max-w-md p-6 relative">
                 <button onclick="app.closeDateModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
                 <h3 class="text-xl font-bold mb-1 text-white">Select Dates</h3>
@@ -181,8 +211,21 @@
         </div>
 
         <div id="viewRequests" class="hidden">
-            <h2 class="text-2xl font-bold mb-6">Incoming Booking Requests</h2>
+            <div class="flex justify-between items-center mb-6">
+                <h2 class="text-2xl font-bold">Incoming Booking Requests</h2>
+                <div class="flex gap-4 items-center">
+                    <button onclick="app.openShareProfile()" class="text-xs font-bold text-gray-400 hover:text-white">Share profile →</button>
+                    <button onclick="app.switchTab('rates')" class="text-xs font-bold text-gray-400 hover:text-white">Set lesson rates →</button>
+                </div>
+            </div>
             <div id="requestsGrid" class="space-y-4"></div>
+        </div>
+
+        <div id="viewPolicy" class="hidden max-w-3xl mx-auto">
+            <div class="glass-panel p-8">
+                <h2 class="text-2xl font-bold mb-4">Dispute & Refund Policy</h2>
+                <ul id="policyList" class="space-y-2 text-sm text-gray-300"></ul>
+            </div>
         </div>
 
         <div id="viewSession" class="hidden">
@@ -232,6 +275,8 @@
         </div>
 
     </main>
+
+    <div id="toastContainer" class="fixed bottom-6 right-6 z-[200] space-y-2"></div>
     
     <div id="authModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 backdrop-blur-md p-6">
         <div class="glass-panel w-full max-w-md p-8 relative">
@@ -268,6 +313,10 @@
             <div id="step2" class="wizard-step hidden-section">
                 <h3 class="text-xl font-bold mb-4">Verification</h3>
                 <input type="text" id="regLicense" placeholder="Driver's License Number" class="lynx-input w-full mb-4">
+                <div id="licenseUploadBlock" class="mb-4">
+                    <p class="text-xs text-gray-400 mb-2 font-bold uppercase">Upload License Image</p>
+                    <input type="file" id="regLicenseImage" accept="image/*" class="lynx-input w-full">
+                </div>
                 <p class="text-xs text-gray-400 mb-2 font-bold uppercase">Do you have a vehicle?</p>
                 <div class="flex gap-4 mb-4">
                     <button id="carBtnYes" onclick="app.setHasCar(true)" class="flex-1 p-4 rounded-xl bg-white/5 border border-white/10 font-bold transition-all">YES</button>
@@ -287,25 +336,36 @@
                     <input type="text" id="regZip" placeholder="Zip Code" class="lynx-input">
                 </div>
                 <div id="mentorFields" style="display:none;">
-                    <p class="text-xs text-gray-400 mb-2 font-bold uppercase mt-4">Hourly Rate ($)</p>
-                    <input type="number" id="regRate" placeholder="e.g. 40" class="lynx-input w-full">
+                    <p class="text-xs text-gray-400 mb-2 font-bold uppercase mt-4">Lesson Rates</p>
+                    <p class="text-[10px] text-gray-500">Set rates after payout setup.</p>
                 </div>
             </div>
 
             <div id="step4" class="wizard-step hidden-section">
                 <h3 class="text-xl font-bold mb-4">Legal Consent</h3>
                 <div class="p-4 bg-white/5 rounded-xl text-[10px] text-gray-400 leading-relaxed mb-4 h-32 overflow-y-auto border border-white/10">
-                    <p>By registering, you agree to the Terms of Service. Driving involves risk. drivingLynX is a platform connecting users and is not liable for accidents, injuries, or damages.</p>
+                    <p>By registering, you agree to the Terms of Service and Safety guidelines.</p>
+                    <a href="terms.html" target="_blank" class="text-white font-bold underline">Read Terms & Safety</a>
                 </div>
                 <label class="flex items-center gap-3 cursor-pointer">
                     <input type="checkbox" id="regConsent" class="w-5 h-5 rounded border-white/20 bg-white/5 text-black focus:ring-0">
-                    <span class="text-xs font-bold text-gray-300">I agree to the Terms & Conditions</span>
+                    <span class="text-xs font-bold text-gray-300">I agree to the Terms & Safety Policy</span>
                 </label>
             </div>
 
             <div id="wizardControls" class="hidden flex justify-between mt-6 pt-6 border-t border-white/10">
                 <button id="backBtn" onclick="app.changeStep(-1)" class="text-xs font-bold text-gray-500 hover:text-white" style="visibility:hidden">BACK</button>
                 <button id="nextBtn" onclick="app.changeStep(1)" class="btn-silver px-6 py-2 rounded-lg text-xs">CONTINUE</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="licenseModal" class="fixed inset-0 z-[150] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+        <div class="glass-panel w-full max-w-md p-6 relative">
+            <button onclick="app.closeLicenseModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+            <h3 class="text-xl font-bold mb-4 text-white">Driver License</h3>
+            <div class="bg-white/5 rounded-xl p-3 flex items-center justify-center">
+                <img id="licenseImage" class="max-h-80 w-full object-contain" alt="License Image">
             </div>
         </div>
     </div>
