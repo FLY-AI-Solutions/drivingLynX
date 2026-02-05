@@ -524,7 +524,7 @@ const app = {
             }
 
             const mentorApproved = this.state.currentUser?.mentor_status === "approved";
-            const ready = mentorApproved && status.details_submitted && status.ready_to_process_payments;
+            const ready = mentorApproved && status.ready_to_process_payments;
             ratesStatus.innerText = ready ? "Payouts active. You can update rates." : "Complete Stripe onboarding to set rates.";
             btn.disabled = !ready;
             inputWithout.disabled = !ready;
