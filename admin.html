@@ -78,6 +78,7 @@
             <div class="flex gap-2">
               <button onclick="reviewMentor(${m.id}, true)" class="bg-green-500/20 text-green-400 px-4 py-2 rounded-lg text-xs font-bold border border-green-500/50 hover:bg-green-500/30">APPROVE</button>
               <button onclick="reviewMentor(${m.id}, false)" class="bg-red-500/20 text-red-400 px-4 py-2 rounded-lg text-xs font-bold border border-red-500/50 hover:bg-red-500/30">REJECT</button>
+              <button onclick="resetStripe(${m.id})" class="bg-yellow-500/20 text-yellow-400 px-4 py-2 rounded-lg text-xs font-bold border border-yellow-500/50 hover:bg-yellow-500/30">RESET STRIPE</button>
             </div>
           </div>
         `).join('');
@@ -99,6 +100,17 @@
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
         body: JSON.stringify({ mentor_id: id, approve })
+      });
+      loadPendingMentors();
+    }
+
+    async function resetStripe(id) {
+      const token = getAdminToken();
+      if (!token) return;
+      await fetch(`${api.baseUrl()}/admin/mentors/reset_stripe`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'x-admin-token': token },
+        body: JSON.stringify({ mentor_id: id, approve: false })
       });
       loadPendingMentors();
     }
