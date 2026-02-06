@@ -91,10 +91,19 @@ const app = {
 
     // --- Auth ---
     async loginAction() {
-        const email = document.getElementById('loginEmail').value;
-        const pass = document.getElementById('loginPass').value;
+        const emailEl = document.getElementById('loginEmail');
+        const passEl = document.getElementById('loginPass');
+        if (!emailEl || !passEl) {
+            this.showToast("Login form not available.", "error");
+            return;
+        }
+        const email = emailEl.value;
+        const pass = passEl.value;
         try {
             const data = await api.login(email, pass);
+            if (!data || !data.user) {
+                throw new Error("Invalid login response");
+            }
             storage.set('lynx_user', data.user);
             this.showDashboard(data.user);
             this.closeModal();
@@ -868,10 +877,14 @@ const app = {
         window.location.href = `mentor-share.html?mentor_id=${this.state.currentUser.id}`;
     },
     ensureLoggedOutUI() {
-        document.getElementById('navUserArea').classList.add('hidden');
-        document.getElementById('navAuthButtons').classList.remove('hidden');
-        document.getElementById('landingView').classList.remove('hidden');
-        document.getElementById('dashboardView').classList.add('hidden');
+        const navUser = document.getElementById('navUserArea');
+        const navAuth = document.getElementById('navAuthButtons');
+        const landing = document.getElementById('landingView');
+        const dashboard = document.getElementById('dashboardView');
+        if (navUser) navUser.classList.add('hidden');
+        if (navAuth) navAuth.classList.remove('hidden');
+        if (landing) landing.classList.remove('hidden');
+        if (dashboard) dashboard.classList.add('hidden');
     },
     logout() { storage.remove('lynx_user'); window.location.reload(); },
     goHome() { window.location.reload(); }
