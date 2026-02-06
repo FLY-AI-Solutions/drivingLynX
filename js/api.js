@@ -21,7 +21,14 @@ const api = {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, password })
         });
-        if (!res.ok) throw new Error("Invalid credentials");
+        if (!res.ok) {
+            let detail = "Invalid credentials";
+            try {
+                const data = await res.json();
+                detail = data.detail || detail;
+            } catch {}
+            throw new Error(detail);
+        }
         return res.json();
     },
 

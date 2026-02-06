@@ -34,6 +34,8 @@ const app = {
                     }
                 });
             }
+        } else {
+            this.ensureLoggedOutUI();
         }
         this.handleOnboardingReturn();
         this.initStripe();
@@ -101,7 +103,11 @@ const app = {
                 this.state.pendingMentorId = null;
             }
             this.updateVerificationMenu();
-        } catch (e) { alert("Login failed"); }
+        } catch (e) {
+            storage.remove('lynx_user');
+            this.ensureLoggedOutUI();
+            this.showToast(e.message || "Login failed", "error");
+        }
     },
 
     async handleRegistration() {
@@ -682,6 +688,8 @@ const app = {
         try {
             await api.verifyEmailOtp(this.state.pendingOtpEmail, code);
             this.showToast("Email verified. Please log in.", "success");
+            storage.remove('lynx_user');
+            this.ensureLoggedOutUI();
             this.closeOtpModal();
             this.openModal('login');
         } catch (e) {
@@ -841,6 +849,12 @@ const app = {
     openShareProfile() {
         if (!this.state.currentUser || this.state.currentUser.role !== 'mentor') return;
         window.location.href = `mentor-share.html?mentor_id=${this.state.currentUser.id}`;
+    },
+    ensureLoggedOutUI() {
+        document.getElementById('navUserArea').classList.add('hidden');
+        document.getElementById('navAuthButtons').classList.remove('hidden');
+        document.getElementById('landingView').classList.remove('hidden');
+        document.getElementById('dashboardView').classList.add('hidden');
     },
     logout() { storage.remove('lynx_user'); window.location.reload(); },
     goHome() { window.location.reload(); }
