@@ -142,27 +142,44 @@ const app = {
 
     showDashboard(user) {
         this.state.currentUser = user;
-        document.getElementById('landingView').classList.add('hidden');
-        document.getElementById('dashboardView').classList.remove('hidden');
-        document.getElementById('navAuthButtons').classList.add('hidden');
-        document.getElementById('navUserArea').classList.remove('hidden');
-        document.getElementById('userNameDisplay').innerText = user.first_name;
-        document.getElementById('roleBadge').innerText = user.role;
+        const landing = document.getElementById('landingView');
+        const dashboard = document.getElementById('dashboardView');
+        const authBtns = document.getElementById('navAuthButtons');
+        const userArea = document.getElementById('navUserArea');
+        const userName = document.getElementById('userNameDisplay');
+        const roleBadge = document.getElementById('roleBadge');
+
+        if (landing) landing.classList.add('hidden');
+        if (dashboard) dashboard.classList.remove('hidden');
+        if (authBtns) authBtns.classList.add('hidden');
+        if (userArea) userArea.classList.remove('hidden');
+        if (userName) userName.innerText = user.first_name;
+        if (roleBadge) roleBadge.innerText = user.role;
         this.updatePayoutBadge(user.role === 'mentor' && user.stripe_onboarding_complete);
 
         if (user.role === 'mentor') {
-            document.getElementById('tabFind').classList.add('hidden');
-            document.getElementById('tabRequests').classList.remove('hidden');
-            document.getElementById('tabAvail').classList.remove('hidden');
-            document.getElementById('tabUpcoming').classList.remove('hidden');
-            document.getElementById('tabRates').classList.remove('hidden');
+            const tabFind = document.getElementById('tabFind');
+            const tabRequests = document.getElementById('tabRequests');
+            const tabAvail = document.getElementById('tabAvail');
+            const tabUpcoming = document.getElementById('tabUpcoming');
+            const tabRates = document.getElementById('tabRates');
+            if (tabFind) tabFind.classList.add('hidden');
+            if (tabRequests) tabRequests.classList.remove('hidden');
+            if (tabAvail) tabAvail.classList.remove('hidden');
+            if (tabUpcoming) tabUpcoming.classList.remove('hidden');
+            if (tabRates) tabRates.classList.remove('hidden');
             this.switchTab('requests');
         } else {
-            document.getElementById('tabFind').classList.remove('hidden');
-            document.getElementById('tabRequests').classList.add('hidden');
-            document.getElementById('tabAvail').classList.add('hidden');
-            document.getElementById('tabUpcoming').classList.remove('hidden');
-            document.getElementById('tabRates').classList.add('hidden');
+            const tabFind = document.getElementById('tabFind');
+            const tabRequests = document.getElementById('tabRequests');
+            const tabAvail = document.getElementById('tabAvail');
+            const tabUpcoming = document.getElementById('tabUpcoming');
+            const tabRates = document.getElementById('tabRates');
+            if (tabFind) tabFind.classList.remove('hidden');
+            if (tabRequests) tabRequests.classList.add('hidden');
+            if (tabAvail) tabAvail.classList.add('hidden');
+            if (tabUpcoming) tabUpcoming.classList.remove('hidden');
+            if (tabRates) tabRates.classList.add('hidden');
             this.switchTab('find');
             this.loadMentors();
         }
