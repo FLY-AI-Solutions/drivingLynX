@@ -31,8 +31,20 @@
         <div id="navUserArea" class="hidden flex items-center gap-4">
             <div class="text-right">
                 <span class="block text-[10px] text-gray-500 font-bold uppercase tracking-widest" id="roleBadge">User</span>
-                <span id="userNameDisplay" class="text-white font-bold text-sm">Driver</span>
+                <div class="flex items-center gap-2 justify-end">
+                    <button id="userMenuBtn" onclick="app.toggleUserMenu()" class="text-white font-bold text-sm hover:text-gray-300">Driver</button>
+                    <span id="emailVerifiedBadge" class="hidden text-[9px] font-bold uppercase tracking-widest text-blue-300">Email Verified</span>
+                </div>
                 <span id="payoutBadge" class="hidden text-[9px] font-bold uppercase tracking-widest text-green-400">Payouts Ready</span>
+            </div>
+            <div id="userMenu" class="hidden absolute right-6 top-20 w-72 glass-panel p-4">
+                <div class="text-xs text-gray-400 uppercase tracking-widest font-bold mb-3">Verification</div>
+                <div class="space-y-2 text-xs text-gray-300">
+                    <div id="verifEmail">Email: Pending</div>
+                    <div id="verifMentor">Mentor Approval: Pending</div>
+                    <div id="verifPayouts">Payouts: Pending</div>
+                </div>
+                <button id="shareProfileBtn" onclick="app.openShareProfile()" class="mt-4 w-full text-xs font-bold text-gray-400 hover:text-white">Share profile</button>
             </div>
             <button onclick="app.logout()" class="text-[10px] font-bold text-red-500 border border-red-500/20 px-3 py-1 rounded">LOGOUT</button>
         </div>
@@ -360,6 +372,18 @@
                 <button id="backBtn" onclick="app.changeStep(-1)" class="text-xs font-bold text-gray-500 hover:text-white" style="visibility:hidden">BACK</button>
                 <button id="nextBtn" onclick="app.changeStep(1)" class="btn-silver px-6 py-2 rounded-lg text-xs">CONTINUE</button>
             </div>
+        </div>
+    </div>
+
+    <div id="otpModal" class="fixed inset-0 z-50 hidden items-center justify-center bg-black/90 backdrop-blur-md p-6">
+        <div class="glass-panel w-full max-w-md p-8 relative">
+            <button onclick="app.closeOtpModal()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+            <h2 class="text-2xl font-black mb-2">Verify Your Email</h2>
+            <p class="text-xs text-gray-400 mb-3">We sent a 6‑digit code to your email. Enter it below to verify your account.</p>
+            <p class="text-[10px] text-gray-500 mb-6">If you don’t see it, check your junk/spam folder.</p>
+            <input type="text" id="otpCode" placeholder="Enter 6-digit code" class="lynx-input w-full mb-4">
+            <button onclick="app.verifyOtp()" class="btn-silver w-full py-3 rounded-xl mb-3">VERIFY</button>
+            <button onclick="app.resendOtp()" class="text-xs font-bold text-gray-400 hover:text-white w-full">Resend code</button>
         </div>
     </div>
 

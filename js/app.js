@@ -100,6 +100,7 @@ const app = {
                 this.openMentorProfile(this.state.pendingMentorId);
                 this.state.pendingMentorId = null;
             }
+            this.updateVerificationMenu();
         } catch (e) { alert("Login failed"); }
     },
 
@@ -128,8 +129,7 @@ const app = {
         };
         try {
             await api.register(payload);
-            alert("Account created! Please login.");
-            this.openModal('login');
+            this.showOtpModal(payload.email);
         } catch (e) { alert(e.message); }
         btn.innerText = "FINISH REGISTRATION";
     },
@@ -641,6 +641,61 @@ const app = {
             el.style.transform = "translateY(6px)";
         }, 2800);
         setTimeout(() => el.remove(), 3200);
+    },
+
+    toggleUserMenu() {
+        const menu = document.getElementById('userMenu');
+        if (!menu) return;
+        menu.classList.toggle('hidden');
+        this.updateVerificationMenu();
+    },
+
+    updateVerificationMenu() {
+        if (!this.state.currentUser) return;
+        const emailLine = document.getElementById('verifEmail');
+        const mentorLine = document.getElementById('verifMentor');
+        const payoutsLine = document.getElementById('verifPayouts');
+        const emailBadge = document.getElementById('emailVerifiedBadge');
+        const shareBtn = document.getElementById('shareProfileBtn');
+        if (!emailLine || !mentorLine || !payoutsLine) return;
+        emailLine.innerText = `Email: ${this.state.currentUser.email_verified ? "Verified" : "Pending"}`;
+        mentorLine.innerText = `Mentor Approval: ${this.state.currentUser.mentor_status || "Pending"}`;
+        payoutsLine.innerText = `Payouts: ${this.state.currentUser.stripe_onboarding_complete ? "Ready" : "Pending"}`;
+        if (emailBadge) emailBadge.classList.toggle('hidden', !this.state.currentUser.email_verified);
+        if (shareBtn) {
+            shareBtn.classList.toggle('hidden', this.state.currentUser.role !== 'mentor' || !this.state.currentUser.email_verified);
+        }
+    },
+
+    showOtpModal(email) {
+        this.state.pendingOtpEmail = email;
+        document.getElementById('otpModal').classList.replace('hidden', 'flex');
+    },
+
+    closeOtpModal() {
+        document.getElementById('otpModal').classList.replace('flex', 'hidden');
+    },
+
+    async verifyOtp() {
+        const code = document.getElementById('otpCode').value.trim();
+        if (!code) return;
+        try {
+            await api.verifyEmailOtp(this.state.pendingOtpEmail, code);
+            this.showToast("Email verified. Please log in.", "success");
+            this.closeOtpModal();
+            this.openModal('login');
+        } catch (e) {
+            this.showToast("Invalid or expired code.", "error");
+        }
+    },
+
+    async resendOtp() {
+        try {
+            await api.sendEmailOtp(this.state.pendingOtpEmail);
+            this.showToast("OTP resent.", "success");
+        } catch (e) {
+            this.showToast("Failed to resend OTP.", "error");
+        }
     },
 
     updatePayoutBadge(isReady) {

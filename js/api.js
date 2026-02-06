@@ -215,6 +215,26 @@ const api = {
         const res = await fetch(`${API_URL}/policy/refunds`);
         if (!res.ok) throw new Error("Failed to load policy");
         return res.json();
+    },
+
+    async sendEmailOtp(email) {
+        const res = await fetch(`${API_URL}/email/send-otp?email=${encodeURIComponent(email)}`, {
+            method: 'POST'
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to send OTP");
+        return data;
+    },
+
+    async verifyEmailOtp(email, otp) {
+        const res = await fetch(`${API_URL}/email/verify-otp`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ email, otp })
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to verify OTP");
+        return data;
     }
 };
 
