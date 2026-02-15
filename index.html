@@ -101,17 +101,36 @@
             <div id="upcomingGrid" class="grid gap-4 md:grid-cols-2"></div>
         </div>
 
-        <div id="viewRates" class="hidden max-w-2xl mx-auto">
+        <div id="viewRates" class="hidden max-w-3xl mx-auto">
             <div class="glass-panel p-8">
                 <h2 class="text-2xl font-bold mb-2">Set Lesson Rates</h2>
-                <p class="text-xs text-gray-400 mb-6">Update pricing after payout setup is complete.</p>
+                <p class="text-xs text-gray-400 mb-6">Activate at least one service before payout onboarding.</p>
                 <div id="mentorStatusBadge" class="hidden text-[10px] font-bold uppercase tracking-widest mb-3"></div>
                 <div class="flex items-center justify-between mb-4">
                     <div id="ratesStatus" class="text-xs text-gray-500">Checking onboarding status...</div>
                     <button onclick="app.refreshPayoutStatus()" class="text-[10px] font-bold text-gray-400 hover:text-white">Refresh status</button>
                 </div>
                 <button id="btnCompleteOnboarding" onclick="app.startStripeOnboardingFromDashboard()" class="hidden btn-silver w-full mb-6 py-3 rounded-xl text-xs">COMPLETE ONBOARDING</button>
-                <div class="space-y-4">
+
+                <div class="grid md:grid-cols-3 gap-3 mb-6">
+                    <button onclick="app.openServiceActivation('A')" class="glass-panel p-4 text-left border border-white/10 hover:border-white/30 transition">
+                        <div class="text-xs text-gray-500 mb-1">Service Name</div>
+                        <div class="font-bold text-sm">A. Driving Training without Car</div>
+                        <div class="text-[10px] mt-2">Status: <span id="serviceStatusA" class="text-yellow-400 font-bold">INACTIVE</span></div>
+                    </button>
+                    <button onclick="app.openServiceActivation('B')" class="glass-panel p-4 text-left border border-white/10 hover:border-white/30 transition">
+                        <div class="text-xs text-gray-500 mb-1">Service Name</div>
+                        <div class="font-bold text-sm">B. Driving Training with Car</div>
+                        <div class="text-[10px] mt-2">Status: <span id="serviceStatusB" class="text-yellow-400 font-bold">INACTIVE</span></div>
+                    </button>
+                    <button onclick="app.openServiceActivation('C')" class="glass-panel p-4 text-left border border-white/10 hover:border-white/30 transition">
+                        <div class="text-xs text-gray-500 mb-1">Service Name</div>
+                        <div class="font-bold text-sm">C. Test Transport</div>
+                        <div class="text-[10px] mt-2">Status: <span id="serviceStatusC" class="text-yellow-400 font-bold">INACTIVE</span></div>
+                    </button>
+                </div>
+
+                <div class="space-y-4 border-t border-white/10 pt-6">
                     <div>
                         <label class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Driving Lesson (Without Car)</label>
                         <input type="number" id="rateWithoutCar" placeholder="e.g. 40" class="lynx-input mt-2">
@@ -120,37 +139,12 @@
                         <label class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Driving Lesson (With Car)</label>
                         <input type="number" id="rateWithCar" placeholder="e.g. 55" class="lynx-input mt-2">
                     </div>
+                    <div>
+                        <label class="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Test Transport Rate</label>
+                        <input type="number" id="testTransportRate" placeholder="e.g. 35" class="lynx-input mt-2">
+                    </div>
                 </div>
                 <button id="btnSaveRates" onclick="app.saveLessonRates()" class="btn-silver w-full mt-6 py-3 rounded-xl text-xs">SAVE RATES</button>
-
-                <div class="mt-8 pt-6 border-t border-white/10 space-y-3">
-                    <h3 class="text-sm font-bold">Take Me To Driving Test (Transport Service)</h3>
-                    <p class="text-[10px] text-gray-400">
-                        This is paid transport and may require commercial insurance and for-hire/TNC licensing.
-                    </p>
-                    <label class="flex items-center gap-2 text-xs text-gray-300">
-                        <input type="checkbox" id="offerTestTransport" class="w-4 h-4">
-                        Offer test-day transport service
-                    </label>
-                    <input type="number" id="testTransportRate" placeholder="Transport rate per trip-hour (e.g. 35)" class="lynx-input">
-                    <label class="flex items-center gap-2 text-xs text-gray-300">
-                        <input type="checkbox" id="certifiedInstructor" class="w-4 h-4">
-                        I am a certified driving instructor
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-gray-300">
-                        <input type="checkbox" id="driverTermsConfirm" class="w-4 h-4 mt-0.5">
-                        I understand and accept the legal terms in <a href="terms.html" target="_blank" class="underline">Terms & Safety</a>.
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-gray-300">
-                        <input type="checkbox" id="driverInsuranceConfirm" class="w-4 h-4 mt-0.5">
-                        I confirm I have valid commercial/for-hire or equivalent insurance for paid passenger transport.
-                    </label>
-                    <label class="flex items-start gap-2 text-xs text-gray-300">
-                        <input type="checkbox" id="driverLicenseConfirm" class="w-4 h-4 mt-0.5">
-                        I confirm I meet local for-hire/TNC licensing requirements.
-                    </label>
-                    <button onclick="app.saveTestTransportSettings()" class="btn-silver w-full py-3 rounded-xl text-xs">SAVE TEST TRANSPORT SETTINGS</button>
-                </div>
             </div>
         </div>
 
@@ -447,6 +441,17 @@
             <div class="bg-white/5 rounded-xl p-3 flex items-center justify-center">
                 <img id="licenseImage" class="max-h-80 w-full object-contain" alt="License Image">
             </div>
+        </div>
+    </div>
+
+    <div id="serviceModal" class="fixed inset-0 z-[160] hidden items-center justify-center bg-black/90 backdrop-blur-sm p-4">
+        <div class="glass-panel w-full max-w-xl p-6 relative">
+            <button onclick="app.closeServiceActivation()" class="absolute top-4 right-4 text-gray-500 hover:text-white">✕</button>
+            <h3 id="serviceModalTitle" class="text-xl font-bold mb-2">Activate Service</h3>
+            <p class="text-xs text-gray-400 mb-4">Select all required confirmations to activate this service.</p>
+            <div id="serviceModalTermInfo" class="text-[10px] text-gray-500 mb-4"></div>
+            <div id="serviceChecklist" class="space-y-3 text-xs"></div>
+            <button onclick="app.activateSelectedService()" class="btn-silver w-full mt-6 py-3 rounded-xl text-xs">ACTIVATE SERVICE</button>
         </div>
     </div>
 

@@ -15,7 +15,9 @@ const app = {
         scanner: null,
         stripe: null,
         cardElement: null,
-        bookingServiceType: 'lesson'
+        bookingServiceType: 'lesson',
+        selectedServiceCode: null,
+        serviceStatus: null
     },
 
     init() {
@@ -596,17 +598,16 @@ const app = {
         const btn = document.getElementById('btnSaveRates');
         const inputWithout = document.getElementById('rateWithoutCar');
         const inputWith = document.getElementById('rateWithCar');
+        const inputTransport = document.getElementById('testTransportRate');
         const btnOnboard = document.getElementById('btnCompleteOnboarding');
         const mentorStatusBadge = document.getElementById('mentorStatusBadge');
-        const offerTransport = document.getElementById('offerTestTransport');
-        const transportRate = document.getElementById('testTransportRate');
-        const certInstructor = document.getElementById('certifiedInstructor');
         if (!ratesStatus || !btn) return;
 
         ratesStatus.innerText = "Checking onboarding status...";
         btn.disabled = true;
         inputWithout.disabled = true;
         inputWith.disabled = true;
+        inputTransport.disabled = true;
         if (btnOnboard) btnOnboard.classList.add('hidden');
 
         try {
@@ -614,6 +615,9 @@ const app = {
             const freshUser = await api.getUser(this.state.currentUser.id);
             this.state.currentUser = { ...this.state.currentUser, ...freshUser };
             storage.set('lynx_user', this.state.currentUser);
+            const serviceStatus = await api.getServiceStatus(this.state.currentUser.id);
+            this.state.serviceStatus = serviceStatus;
+            this.renderServiceStatus(serviceStatus.services);
 
             if (mentorStatusBadge) {
                 const status = this.state.currentUser?.mentor_status || "pending_review";
@@ -637,12 +641,20 @@ const app = {
             }
 
             const mentorApproved = this.state.currentUser?.mentor_status === "approved";
+            const servicesActive = !!serviceStatus.can_start_payment_onboarding;
             const ready = mentorApproved && status.ready_to_process_payments;
-            ratesStatus.innerText = ready ? "Payouts active. You can update rates." : "Complete Stripe onboarding to set rates.";
+            if (!servicesActive) {
+                ratesStatus.innerText = "Activate at least one service to enable payout onboarding.";
+            } else if (ready) {
+                ratesStatus.innerText = "Payouts active. You can update rates.";
+            } else {
+                ratesStatus.innerText = "Service active. Complete Stripe onboarding to accept payments.";
+            }
             btn.disabled = !ready;
             inputWithout.disabled = !ready;
             inputWith.disabled = !ready;
-            if (!ready && btnOnboard && mentorApproved) btnOnboard.classList.remove('hidden');
+            inputTransport.disabled = !ready;
+            if (!ready && btnOnboard && mentorApproved && servicesActive) btnOnboard.classList.remove('hidden');
             this.updatePayoutBadge(ready);
         } catch (e) {
             ratesStatus.innerText = "Unable to check status.";
@@ -651,9 +663,106 @@ const app = {
         if (this.state.currentUser) {
             inputWithout.value = this.state.currentUser.hourly_rate_without_car || 0;
             inputWith.value = this.state.currentUser.hourly_rate_with_car || 0;
-            if (offerTransport) offerTransport.checked = !!this.state.currentUser.offers_test_transport;
-            if (transportRate) transportRate.value = this.state.currentUser.test_transport_rate || 0;
-            if (certInstructor) certInstructor.checked = !!this.state.currentUser.is_certified_instructor;
+            if (inputTransport) inputTransport.value = this.state.currentUser.test_transport_rate || 0;
+        }
+    },
+
+    renderServiceStatus(services = {}) {
+        const map = {
+            A: services.service_a_training_without_car,
+            B: services.service_b_training_with_car,
+            C: services.service_c_test_transport
+        };
+        Object.entries(map).forEach(([code, s]) => {
+            const el = document.getElementById(`serviceStatus${code}`);
+            if (!el || !s) return;
+            const active = !!s.active;
+            el.innerText = active ? "ACTIVE" : "INACTIVE";
+            el.className = active ? "text-green-400 font-bold" : "text-yellow-400 font-bold";
+        });
+    },
+
+    async openServiceActivation(code) {
+        this.state.selectedServiceCode = code;
+        const modal = document.getElementById('serviceModal');
+        const title = document.getElementById('serviceModalTitle');
+        const checklist = document.getElementById('serviceChecklist');
+        const termInfo = document.getElementById('serviceModalTermInfo');
+        if (!modal || !title || !checklist || !termInfo) return;
+
+        const defs = {
+            A: {
+                name: "A. Driving Training without Car",
+                ackType: "driver_training_without_car_terms",
+                items: [
+                    { id: "svcCertified", text: "I am a certified driving instructor and affliated with a driving school." },
+                    { id: "svcTerms", text: `I understand and accept the legal terms in <a href="terms.html" target="_blank" class="underline">Terms & Safety</a>.` }
+                ]
+            },
+            B: {
+                name: "B. Driving Training with Car",
+                ackType: "driver_training_with_car_terms",
+                items: [
+                    { id: "svcCertified", text: "I am a certified driving instructor and affliated with a driving school." },
+                    { id: "svcTerms", text: `I understand and accept the legal terms in <a href="terms.html" target="_blank" class="underline">Terms & Safety</a>.` },
+                    { id: "svcInsurance", text: "I confirm I have valid commercial/for-hire or equivalent insurance for paid passenger transport." }
+                ]
+            },
+            C: {
+                name: "C. Test Transport",
+                ackType: "driver_test_transport_terms",
+                items: [
+                    { id: "svcTerms", text: `I understand and accept the legal terms in <a href="terms.html" target="_blank" class="underline">Terms & Safety</a>.` },
+                    { id: "svcInsurance", text: "I confirm I have valid commercial/for-hire or equivalent insurance for paid passenger transport." },
+                    { id: "svcLicense", text: `I confirm I meet local for-hire/TNC licensing requirements (<a href="https://www.nyc.gov/site/tlc/drivers/get-a-tlc-drivers-license.page" target="_blank" class="underline">what it means</a>).` }
+                ]
+            }
+        };
+        const def = defs[code];
+        if (!def) return;
+        title.innerText = `Activate ${def.name}`;
+        checklist.innerHTML = def.items.map(i => `
+            <label class="flex items-start gap-2 text-xs text-gray-300">
+                <input type="checkbox" id="${i.id}" class="w-4 h-4 mt-0.5">
+                <span>${i.text}</span>
+            </label>
+        `).join('');
+        termInfo.innerText = "Loading active legal term...";
+        try {
+            const term = await api.getActiveLegalTerm(def.ackType);
+            termInfo.innerText = `Active legal term id: ${term.term_id}`;
+        } catch (e) {
+            termInfo.innerText = "Active legal term unavailable.";
+        }
+        modal.classList.replace('hidden', 'flex');
+    },
+
+    closeServiceActivation() {
+        document.getElementById('serviceModal')?.classList.replace('flex', 'hidden');
+        this.state.selectedServiceCode = null;
+    },
+
+    async activateSelectedService() {
+        const code = this.state.selectedServiceCode;
+        if (!code || !this.state.currentUser) return;
+        const certified = !!document.getElementById('svcCertified')?.checked;
+        const terms = !!document.getElementById('svcTerms')?.checked;
+        const insurance = !!document.getElementById('svcInsurance')?.checked;
+        const license = !!document.getElementById('svcLicense')?.checked;
+        try {
+            await api.activateService({
+                user_id: this.state.currentUser.id,
+                service_code: code,
+                certified_instructor_affiliated: certified,
+                accepts_terms: terms,
+                confirms_commercial_insurance: insurance,
+                confirms_for_hire_or_tnc_license: license
+            });
+            this.showToast(`Service ${code} activated.`, "success");
+            this.closeServiceActivation();
+            await this.loadLessonRates();
+        } catch (e) {
+            this.showToast(e.message || "Activation failed.", "error");
         }
     },
 
@@ -693,6 +802,7 @@ const app = {
     async saveLessonRates() {
         const inputWithout = document.getElementById('rateWithoutCar');
         const inputWith = document.getElementById('rateWithCar');
+        const inputTransport = document.getElementById('testTransportRate');
         this.showToast("Saving rates...", "info");
         try {
             const res = await api.updateLessonRates({
@@ -701,44 +811,19 @@ const app = {
                 rate_with_car: parseFloat(inputWith.value || 0),
                 currency: "usd"
             });
+            await api.updateUser(this.state.currentUser.id, {
+                test_transport_rate: parseFloat(inputTransport.value || 0)
+            });
             this.showToast(res.message || "Rates updated.", "success");
             this.state.currentUser.hourly_rate_without_car = parseFloat(inputWithout.value || 0);
             this.state.currentUser.hourly_rate_with_car = parseFloat(inputWith.value || 0);
+            this.state.currentUser.test_transport_rate = parseFloat(inputTransport.value || 0);
             storage.set('lynx_user', this.state.currentUser);
             if (!document.getElementById('viewFind').classList.contains('hidden')) {
                 this.loadMentors();
             }
         } catch (e) {
             this.showToast("Update failed.", "error");
-        }
-    },
-
-    async saveTestTransportSettings() {
-        const offer = document.getElementById('offerTestTransport')?.checked;
-        const rate = parseFloat(document.getElementById('testTransportRate')?.value || 0);
-        const certified = !!document.getElementById('certifiedInstructor')?.checked;
-        const confirmsTerms = !!document.getElementById('driverTermsConfirm')?.checked;
-        const confirmsInsurance = !!document.getElementById('driverInsuranceConfirm')?.checked;
-        const confirmsLicense = !!document.getElementById('driverLicenseConfirm')?.checked;
-
-        try {
-            const res = await api.updateTestTransportOffer({
-                user_id: this.state.currentUser.id,
-                offers_test_transport: !!offer,
-                test_transport_rate: rate,
-                is_certified_instructor: certified,
-                confirms_terms_understood: confirmsTerms,
-                confirms_commercial_insurance: confirmsInsurance,
-                confirms_for_hire_or_tnc_license: confirmsLicense
-            });
-            this.state.currentUser.offers_test_transport = res.offers_test_transport;
-            this.state.currentUser.test_transport_rate = res.test_transport_rate;
-            this.state.currentUser.is_certified_instructor = res.is_certified_instructor;
-            this.state.currentUser.driver_terms_ack_version = res.driver_terms_ack_version;
-            storage.set('lynx_user', this.state.currentUser);
-            this.showToast("Test transport settings saved.", "success");
-        } catch (e) {
-            this.showToast(e.message || "Failed to save test transport settings.", "error");
         }
     },
 
@@ -756,6 +841,10 @@ const app = {
 
     startStripeOnboardingFromDashboard() {
         if (!this.state.currentUser) return;
+        if (!this.state.serviceStatus?.can_start_payment_onboarding) {
+            this.showToast("Activate at least one service first.", "error");
+            return;
+        }
         this.showToast("Opening Stripe onboarding...", "info");
         api.createOnboardingLink(this.state.currentUser.id)
             .then((data) => {

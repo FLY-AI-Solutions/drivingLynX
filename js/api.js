@@ -283,6 +283,24 @@ const api = {
         return data;
     },
 
+    async getServiceStatus(userId) {
+        const res = await fetch(`${API_URL}/services/status/${userId}`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to load service status");
+        return data;
+    },
+
+    async activateService(payload) {
+        const res = await fetch(`${API_URL}/services/activate`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to activate service");
+        return data;
+    },
+
     async sendEmailOtp(email) {
         const res = await fetch(`${API_URL}/email/send-otp?email=${encodeURIComponent(email)}`, {
             method: 'POST'
