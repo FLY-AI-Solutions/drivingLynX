@@ -224,6 +224,65 @@ const api = {
         return res.json();
     },
 
+    async getTestTransportDisclosure() {
+        const res = await fetch(`${API_URL}/policy/test-transport-disclosure`);
+        if (!res.ok) throw new Error("Failed to load disclosure");
+        return res.json();
+    },
+
+    async getActiveLegalTerm(ackType) {
+        const res = await fetch(`${API_URL}/legal/terms/${encodeURIComponent(ackType)}/active`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to load legal term");
+        return data;
+    },
+
+    async acknowledgeLegal(payload) {
+        const res = await fetch(`${API_URL}/legal/acknowledge`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to store acknowledgement");
+        return data;
+    },
+
+    async adminListLegalTerms(adminToken, ackType = '') {
+        const q = ackType ? `?ack_type=${encodeURIComponent(ackType)}` : '';
+        const res = await fetch(`${API_URL}/admin/legal_terms${q}`, {
+            headers: { 'x-admin-token': adminToken }
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to load legal terms");
+        return data;
+    },
+
+    async adminSaveLegalTerm(adminToken, payload) {
+        const res = await fetch(`${API_URL}/admin/legal_terms`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'x-admin-token': adminToken
+            },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to save legal term");
+        return data;
+    },
+
+    async updateTestTransportOffer(payload) {
+        const res = await fetch(`${API_URL}/test-transport/offer`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(payload)
+        });
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to update test transport offer");
+        return data;
+    },
+
     async sendEmailOtp(email) {
         const res = await fetch(`${API_URL}/email/send-otp?email=${encodeURIComponent(email)}`, {
             method: 'POST'

@@ -63,6 +63,9 @@ const ui = {
         grid.innerHTML = data.map(m => {
             const rates = [m.hourly_rate_without_car || 0, m.hourly_rate_with_car || 0].filter(r => r > 0);
             const fromRate = rates.length ? Math.min(...rates) : 0;
+            const transportTag = m.offers_test_transport
+                ? `<p class="text-[10px] text-blue-300 mb-2">Test Transport: $${m.test_transport_rate || 0}/trip-hour${m.is_certified_instructor ? " · Certified" : " · Non-certified driver"}</p>`
+                : `<p class="text-[10px] text-gray-600 mb-2">Test Transport: Not offered</p>`;
             return `
             <div class="glass-panel p-6">
                 <div class="flex justify-between mb-2">
@@ -71,6 +74,7 @@ const ui = {
                 </div>
                 <p class="text-xs text-gray-400 mb-4">${m.city || 'NY'}</p>
                 <p class="text-[10px] text-gray-500 mb-4">With Car: $${m.hourly_rate_with_car || 0}/hr · Without Car: $${m.hourly_rate_without_car || 0}/hr</p>
+                ${transportTag}
                 <button onclick="app.openMentorProfile(${m.id})" class="btn-silver w-full py-2 text-xs">REQUEST SESSION</button>
             </div>`;
         }).join('');
@@ -146,7 +150,8 @@ const ui = {
         document.getElementById('profileName').innerText = `${data.first_name} ${data.last_name}`;
         const rateWithCar = data.hourly_rate_with_car || 0;
         const rateWithoutCar = data.hourly_rate_without_car || 0;
-        const rateDisplay = `With Car: $${rateWithCar}/hr · Without Car: $${rateWithoutCar}/hr`;
+        const transport = data.offers_test_transport ? ` · Test Transport: $${data.test_transport_rate || 0}/trip-hour` : '';
+        const rateDisplay = `With Car: $${rateWithCar}/hr · Without Car: $${rateWithoutCar}/hr${transport}`;
         document.getElementById('profileRate').innerText = rateDisplay;
         const initials = document.getElementById('profileInitials');
         const photo = document.getElementById('profilePhoto');

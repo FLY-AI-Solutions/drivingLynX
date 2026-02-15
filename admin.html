@@ -26,6 +26,33 @@
     </div>
 
     <div id="mentorGrid" class="grid gap-4 md:grid-cols-2"></div>
+
+    <div class="glass-panel p-8 mt-8">
+      <h2 class="text-2xl font-black mb-2">Legal Terms Manager</h2>
+      <p class="text-xs text-gray-400 mb-6">Create a new active term version. The new record gets a unique <code>term_id</code> and previous active term is archived.</p>
+
+      <div class="grid md:grid-cols-2 gap-6">
+        <div class="space-y-3">
+          <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Term Type</label>
+          <select id="legalAckType" class="lynx-input w-full">
+            <option value="driver_test_transport_terms">Driver Test Transport Terms</option>
+            <option value="student_test_transport_terms">Student Test Transport Terms</option>
+          </select>
+          <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Title</label>
+          <input id="legalTitle" class="lynx-input w-full" placeholder="Term title" />
+          <label class="text-xs font-bold text-gray-400 uppercase tracking-widest">Body Clauses (one per line)</label>
+          <textarea id="legalBody" class="lynx-input w-full min-h-[180px]" placeholder="Clause 1&#10;Clause 2&#10;Clause 3"></textarea>
+          <button onclick="saveLegalTerm()" class="btn-silver w-full py-3 rounded-xl text-xs">SAVE NEW TERM VERSION</button>
+        </div>
+        <div>
+          <div class="flex justify-between items-center mb-3">
+            <h3 class="font-bold">Recent Terms</h3>
+            <button onclick="loadLegalTerms()" class="text-xs text-gray-400 hover:text-white">Refresh</button>
+          </div>
+          <div id="legalTermsList" class="space-y-2 text-xs"></div>
+        </div>
+      </div>
+    </div>
   </main>
 
   <script src="js/api.js"></script>
@@ -115,7 +142,54 @@
       loadPendingMentors();
     }
 
+    async function loadLegalTerms() {
+      const list = document.getElementById('legalTermsList');
+      list.innerHTML = 'Loading...';
+      try {
+        const token = getAdminToken();
+        if (!token) {
+          list.innerHTML = '<div class="text-xs text-gray-500">Admin token required.</div>';
+          return;
+        }
+        const rows = await api.adminListLegalTerms(token);
+        if (!rows.length) {
+          list.innerHTML = '<div class="text-xs text-gray-500">No legal terms found.</div>';
+          return;
+        }
+        list.innerHTML = rows.map(r => `
+          <div class="p-3 rounded border ${r.is_active ? 'border-green-500/50 bg-green-500/10' : 'border-white/10 bg-white/5'}">
+            <div class="font-bold">${r.title}</div>
+            <div class="text-[10px] text-gray-400">term_id=${r.term_id} · ${r.ack_type} · ${r.is_active ? 'ACTIVE' : 'ARCHIVED'}</div>
+            <div class="text-[10px] text-gray-500">${r.created_at}</div>
+          </div>
+        `).join('');
+      } catch (e) {
+        list.innerHTML = `<div class="text-xs text-red-400">${e.message || 'Failed to load terms.'}</div>`;
+      }
+    }
+
+    async function saveLegalTerm() {
+      const token = getAdminToken();
+      if (!token) return;
+      const ackType = document.getElementById('legalAckType').value;
+      const title = document.getElementById('legalTitle').value.trim();
+      const bodyRaw = document.getElementById('legalBody').value || '';
+      const body = bodyRaw.split('\n').map(x => x.trim()).filter(Boolean);
+      if (!title || !body.length) {
+        alert('Title and at least one clause are required.');
+        return;
+      }
+      try {
+        const res = await api.adminSaveLegalTerm(token, { ack_type: ackType, title, body });
+        alert(`Legal term saved. term_id=${res.term_id}`);
+        loadLegalTerms();
+      } catch (e) {
+        alert(e.message || 'Failed to save legal term');
+      }
+    }
+
     loadPendingMentors();
+    loadLegalTerms();
   </script>
 </body>
 </html>

@@ -14,7 +14,8 @@ const app = {
         totalSteps: 4,
         scanner: null,
         stripe: null,
-        cardElement: null
+        cardElement: null,
+        bookingServiceType: 'lesson'
     },
 
     init() {
@@ -140,7 +141,8 @@ const app = {
             has_car: this.state.hasCar,
             car_make_model: document.getElementById('regCarModel').value || null,
             car_plate: document.getElementById('regCarPlate').value || null,
-            license_image: licenseImage
+            license_image: licenseImage,
+            is_certified_instructor: !!document.getElementById('regCertifiedInstructor')?.checked
         };
         try {
             await api.register(payload);
@@ -410,23 +412,72 @@ const app = {
         if(this.state.selectedSlots.length === 0) return alert("Select at least one slot.");
         document.getElementById('viewProfile').classList.add('hidden');
         document.getElementById('viewPayment').classList.remove('hidden');
-        
-        const count = this.state.selectedSlots.length;
-        const rate = this.getCurrentLessonRate();
-        const subtotal = count * rate;
-        
-        document.getElementById('payCount').innerText = count;
-        document.getElementById('payRate').innerText = `$${rate}`;
-        document.getElementById('paySubtotal').innerText = `$${subtotal.toFixed(2)}`;
-        document.getElementById('payTotal').innerText = `$${(subtotal+5).toFixed(2)}`;
+
+        this.state.bookingServiceType = 'lesson';
+        const serviceSelect = document.getElementById('bookingServiceType');
+        if (serviceSelect) {
+            const transportOption = serviceSelect.querySelector('option[value="test_transport"]');
+            if (transportOption) {
+                transportOption.disabled = !(this.state.selectedMentor?.offers_test_transport);
+            }
+            serviceSelect.value = 'lesson';
+            serviceSelect.onchange = () => {
+                this.state.bookingServiceType = serviceSelect.value;
+                this.refreshPaymentSummary();
+                if (this.state.bookingServiceType === 'test_transport') this.loadStudentTransportDisclosure();
+            };
+        }
+        this.refreshPaymentSummary();
 
         if (this.state.cardElement) {
             this.state.cardElement.mount('#card-element');
         }
     },
 
+    computePlatformFee(subtotal) {
+        const pct = subtotal * 0.05;
+        return Math.min(15, Math.max(5, pct));
+    },
+
+    refreshPaymentSummary() {
+        const count = this.state.selectedSlots.length;
+        const rate = this.getCurrentLessonRate();
+        const subtotal = count * rate;
+        const fee = this.computePlatformFee(subtotal);
+        const total = subtotal + fee;
+        document.getElementById('payCount').innerText = count;
+        document.getElementById('payRate').innerText = `$${rate.toFixed(2)}`;
+        document.getElementById('paySubtotal').innerText = `$${subtotal.toFixed(2)}`;
+        document.getElementById('payFees').innerText = `$${fee.toFixed(2)}`;
+        document.getElementById('payTotal').innerText = `$${total.toFixed(2)}`;
+
+        const isTransport = this.state.bookingServiceType === 'test_transport';
+        document.getElementById('transportFields')?.classList.toggle('hidden', !isTransport);
+        document.getElementById('studentTransportAckWrap')?.classList.toggle('hidden', !isTransport);
+        document.getElementById('studentTransportDisclosure')?.classList.toggle('hidden', !isTransport);
+    },
+
+    async loadStudentTransportDisclosure() {
+        const box = document.getElementById('studentTransportDisclosure');
+        if (!box) return;
+        box.innerText = "Loading legal disclosure...";
+        try {
+            const term = await api.getActiveLegalTerm("student_test_transport_terms");
+            const clauses = Array.isArray(term.body) ? term.body : [];
+            box.innerHTML = `
+                <div class="font-bold text-white mb-1">${term.title} (Term ID: ${term.term_id})</div>
+                <ul class="list-disc ml-5 space-y-1">${clauses.map(c => `<li>${c}</li>`).join('')}</ul>
+            `;
+        } catch (e) {
+            box.innerText = "Unable to load legal disclosure.";
+        }
+    },
+
     getCurrentLessonRate() {
         const mentor = this.state.selectedMentor || {};
+        if (this.state.bookingServiceType === 'test_transport') {
+            return parseFloat(mentor.test_transport_rate || 0);
+        }
         const hasCar = this.state.currentUser?.has_car;
         const rateWithoutCar = mentor.hourly_rate_without_car || 0;
         const rateWithCar = mentor.hourly_rate_with_car || 0;
@@ -440,9 +491,28 @@ const app = {
 
         try {
             let paymentMethodId = "pm_card_us"; // Default for helping mode
+            const rate = this.getCurrentLessonRate();
+            const serviceType = this.state.bookingServiceType || 'lesson';
+
+            if (serviceType === 'test_transport') {
+                const studentAck = document.getElementById('studentTransportAck');
+                if (!studentAck?.checked) throw new Error("You must acknowledge test transport legal disclosure.");
+                const studentTerm = await api.getActiveLegalTerm("student_test_transport_terms");
+                await api.acknowledgeLegal({
+                    user_id: this.state.currentUser.id,
+                    ack_type: "student_test_transport_terms",
+                    term_id: studentTerm.term_id,
+                    accepted: true,
+                    ack_meta: {
+                        source: "booking_flow",
+                        service_type: "test_transport",
+                        disclosure_term_id: studentTerm.term_id
+                    }
+                });
+            }
 
             // Only use Stripe if rate > 0
-            if (this.state.selectedMentor.hourly_rate > 0) {
+            if (rate > 0) {
                  const {paymentMethod, error} = await this.state.stripe.createPaymentMethod({
                     type: 'card',
                     card: this.state.cardElement,
@@ -458,7 +528,10 @@ const app = {
                 mentor_id: this.state.selectedMentor.id,
                 mentee_id: this.state.currentUser.id,
                 datetime_slots: this.state.selectedSlots,
-                payment_method_id: paymentMethodId
+                payment_method_id: paymentMethodId,
+                service_type: serviceType,
+                pickup_address: document.getElementById('pickupAddress')?.value || null,
+                dropoff_location: document.getElementById('dropoffLocation')?.value || null
             });
 
             if (res.error) throw new Error(res.error);
@@ -525,6 +598,9 @@ const app = {
         const inputWith = document.getElementById('rateWithCar');
         const btnOnboard = document.getElementById('btnCompleteOnboarding');
         const mentorStatusBadge = document.getElementById('mentorStatusBadge');
+        const offerTransport = document.getElementById('offerTestTransport');
+        const transportRate = document.getElementById('testTransportRate');
+        const certInstructor = document.getElementById('certifiedInstructor');
         if (!ratesStatus || !btn) return;
 
         ratesStatus.innerText = "Checking onboarding status...";
@@ -575,6 +651,9 @@ const app = {
         if (this.state.currentUser) {
             inputWithout.value = this.state.currentUser.hourly_rate_without_car || 0;
             inputWith.value = this.state.currentUser.hourly_rate_with_car || 0;
+            if (offerTransport) offerTransport.checked = !!this.state.currentUser.offers_test_transport;
+            if (transportRate) transportRate.value = this.state.currentUser.test_transport_rate || 0;
+            if (certInstructor) certInstructor.checked = !!this.state.currentUser.is_certified_instructor;
         }
     },
 
@@ -631,6 +710,35 @@ const app = {
             }
         } catch (e) {
             this.showToast("Update failed.", "error");
+        }
+    },
+
+    async saveTestTransportSettings() {
+        const offer = document.getElementById('offerTestTransport')?.checked;
+        const rate = parseFloat(document.getElementById('testTransportRate')?.value || 0);
+        const certified = !!document.getElementById('certifiedInstructor')?.checked;
+        const confirmsTerms = !!document.getElementById('driverTermsConfirm')?.checked;
+        const confirmsInsurance = !!document.getElementById('driverInsuranceConfirm')?.checked;
+        const confirmsLicense = !!document.getElementById('driverLicenseConfirm')?.checked;
+
+        try {
+            const res = await api.updateTestTransportOffer({
+                user_id: this.state.currentUser.id,
+                offers_test_transport: !!offer,
+                test_transport_rate: rate,
+                is_certified_instructor: certified,
+                confirms_terms_understood: confirmsTerms,
+                confirms_commercial_insurance: confirmsInsurance,
+                confirms_for_hire_or_tnc_license: confirmsLicense
+            });
+            this.state.currentUser.offers_test_transport = res.offers_test_transport;
+            this.state.currentUser.test_transport_rate = res.test_transport_rate;
+            this.state.currentUser.is_certified_instructor = res.is_certified_instructor;
+            this.state.currentUser.driver_terms_ack_version = res.driver_terms_ack_version;
+            storage.set('lynx_user', this.state.currentUser);
+            this.showToast("Test transport settings saved.", "success");
+        } catch (e) {
+            this.showToast(e.message || "Failed to save test transport settings.", "error");
         }
     },
 
