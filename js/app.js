@@ -20,7 +20,7 @@ const app = {
         serviceStatus: null
     },
 
-    init() {
+    async init() {
         setTimeout(() => document.getElementById('splash').style.transform = 'translateY(-100%)', 1000);
         this.handleDeepLink();
         const user = storage.get('lynx_user');
@@ -41,12 +41,13 @@ const app = {
             this.ensureLoggedOutUI();
         }
         this.handleOnboardingReturn();
-        this.initStripe();
+        await this.initStripe();
     },
 
-    initStripe() {
+    async initStripe() {
         if (window.Stripe) {
-            this.state.stripe = Stripe('pk_test_TYooMQauvdEDq54NiTphI7jx'); // REPLACE WITH YOUR KEY
+            const cfg = await api.getPublicConfig();
+            this.state.stripe = Stripe(cfg.stripe_publishable_key);
             const elements = this.state.stripe.elements();
             this.state.cardElement = elements.create('card', {
                 style: {
@@ -515,6 +516,9 @@ const app = {
 
             // Only use Stripe if rate > 0
             if (rate > 0) {
+                if (!this.state.stripe || !this.state.cardElement) {
+                    throw new Error("Payments are not initialized. Refresh and try again.");
+                }
                  const {paymentMethod, error} = await this.state.stripe.createPaymentMethod({
                     type: 'card',
                     card: this.state.cardElement,

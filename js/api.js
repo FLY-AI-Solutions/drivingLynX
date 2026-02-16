@@ -4,6 +4,12 @@ const api = {
     baseUrl() {
         return API_URL;
     },
+    async getPublicConfig() {
+        const res = await fetch(`${API_URL}/config/public`);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || "Failed to load public config");
+        return data;
+    },
     // --- Auth ---
     async register(payload) {
         const res = await fetch(`${API_URL}/register`, {
